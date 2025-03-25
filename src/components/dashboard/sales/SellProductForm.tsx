@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import { Product, Shop } from "@/types/schema";
-import { Trash2, Plus, Search, ShoppingCart } from "lucide-react";
+import { Trash2, Plus, ShoppingCart } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -38,7 +38,7 @@ type CartItem = {
   quantity: number;
   available_quantity: number;
   subtotal: number;
-  supplier_name: string; // Changed from company_name
+  supplier_name: string;
 };
 
 export function SellProductForm() {
@@ -60,6 +60,7 @@ export function SellProductForm() {
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [activeTab, setActiveTab] = useState<"products" | "cart">("products"); // Added state for controlling tabs
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -119,7 +120,6 @@ export function SellProductForm() {
   }
 
   const handleAddToCart = async (product: Product) => {
-    // First, get the product details without trying to use the relationship
     const { data: productData, error: productError } = await supabase
       .from("products")
       .select("*")
@@ -135,7 +135,6 @@ export function SellProductForm() {
       return;
     }
 
-    // Separately fetch the supplier name using the supplier_id
     let supplierName = "Unknown";
     if (productData.supplier_id) {
       const { data: supplierData, error: supplierError } = await supabase
@@ -184,13 +183,13 @@ export function SellProductForm() {
       const newItem: CartItem = {
         id: Date.now().toString(),
         product_id: product.id,
-        name: product.name,
+        name: product.name || "Unknown Product",
         barcode: product.barcode,
         selling_price: product.selling_price,
         quantity: 1,
         available_quantity: product.quantity,
         subtotal: product.selling_price,
-        supplier_name: supplierName, // Changed from company_name to supplier_name
+        supplier_name: supplierName || "Unknown Supplier",
       };
 
       setCartItems([...cartItems, newItem]);
@@ -198,7 +197,7 @@ export function SellProductForm() {
 
     toast({
       title: "Product added",
-      description: `${product.name} added to cart`,
+      description: `${product.name || "Product"} added to cart`,
     });
   };
 
@@ -261,6 +260,40 @@ export function SellProductForm() {
     try {
       setLoading(true);
 
+      let customerId = null;
+      if (customerName && customerPhone) {
+        const { data: existingCustomer, error: customerCheckError } =
+          await supabase
+            .from("customers")
+            .select("id")
+            .eq("phone", customerPhone)
+            .maybeSingle();
+
+        if (customerCheckError) {
+          console.error("Error checking customer:", customerCheckError);
+        }
+
+        if (!existingCustomer) {
+          const { data: newCustomer, error: createCustomerError } =
+            await supabase
+              .from("customers")
+              .insert({
+                name: customerName,
+                phone: customerPhone,
+                created_at: new Date().toISOString(),
+              })
+              .select();
+
+          if (createCustomerError) {
+            console.error("Error creating customer:", createCustomerError);
+          } else if (newCustomer && newCustomer.length > 0) {
+            customerId = newCustomer[0].id;
+          }
+        } else {
+          customerId = existingCustomer.id;
+        }
+      }
+
       const invoiceNumber = `SALE-${Date.now().toString().slice(-6)}`;
       const paymentStatus =
         parseFloat(advancePayment) <= 0
@@ -280,6 +313,8 @@ export function SellProductForm() {
           shop_id: shopId,
           customer_name: customerName || null,
           customer_phone: customerPhone || null,
+          customer_id: customerId,
+          invoice_type: "sales",
           notes: `Discount: ${discountAmount.toFixed(2)}, Tax: ${taxAmount.toFixed(2)}`,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -296,8 +331,11 @@ export function SellProductForm() {
         quantity: item.quantity,
         unit_price: item.selling_price,
         total_price: item.subtotal,
-        supplier_name: item.supplier_name,
+        supplier_name: item.supplier_name || "Unknown Supplier",
         created_at: new Date().toISOString(),
+        product_name: item.name || "Unknown Product",
+        barcode: item.barcode || null,
+        watt: null,
       }));
 
       const { error: itemsError } = await supabase
@@ -344,10 +382,20 @@ export function SellProductForm() {
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="products" className="w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as "products" | "cart")}
+        className="w-full"
+      >
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="products">Products</TabsTrigger>
-          <TabsTrigger value="cart" className="flex items-center gap-2">
+          <TabsTrigger value="products" id="products-tab">
+            Products
+          </TabsTrigger>
+          <TabsTrigger
+            value="cart"
+            id="cart-tab"
+            className="flex items-center gap-2"
+          >
             <ShoppingCart className="h-4 w-4" />
             Cart
             {cartItems.length > 0 && (
@@ -417,14 +465,17 @@ export function SellProductForm() {
                     </div>
                     <div className="flex justify-between font-medium">
                       <span>Subtotal:</span>
-                      <span>${subtotal.toFixed(2)}</span>
+                      <span>
+                        $
+                        {cartItems
+                          .reduce((sum, item) => sum + item.subtotal, 0)
+                          .toFixed(2)}
+                      </span>
                     </div>
                     <Button
                       variant="default"
                       className="w-full mt-2"
-                      onClick={() =>
-                        document.getElementById("cart-tab")?.click()
-                      }
+                      onClick={() => setActiveTab("cart")} // Switch to cart tab
                     >
                       View Cart
                     </Button>
@@ -435,7 +486,7 @@ export function SellProductForm() {
           </div>
         </TabsContent>
 
-        <TabsContent value="cart" id="cart-tab" className="space-y-6 mt-4">
+        <TabsContent value="cart" className="space-y-6 mt-4">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2">
@@ -454,8 +505,7 @@ export function SellProductForm() {
                           <TableHeader>
                             <TableRow>
                               <TableHead>Product</TableHead>
-                              <TableHead>Supplier</TableHead>{" "}
-                              {/* Changed from Company to Supplier */}
+                              <TableHead>Supplier</TableHead>
                               <TableHead>Price</TableHead>
                               <TableHead>Quantity</TableHead>
                               <TableHead>Subtotal</TableHead>
@@ -475,8 +525,7 @@ export function SellProductForm() {
                                     )}
                                   </div>
                                 </TableCell>
-                                <TableCell>{item.supplier_name}</TableCell>{" "}
-                                {/* Changed from company_name to supplier_name */}
+                                <TableCell>{item.supplier_name}</TableCell>
                                 <TableCell>
                                   ${item.selling_price.toFixed(2)}
                                 </TableCell>
@@ -559,9 +608,7 @@ export function SellProductForm() {
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() =>
-                          document.getElementById("products-tab")?.click()
-                        }
+                        onClick={() => setActiveTab("products")} // Switch to products tab
                         className="flex items-center gap-2"
                       >
                         <Plus className="h-4 w-4" /> Add More Products

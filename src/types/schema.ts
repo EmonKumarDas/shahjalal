@@ -1,10 +1,30 @@
 import { Database } from "./supabase";
 
-export type Supplier = Database["public"]["Tables"]["suppliers"]["Row"];
+export type Supplier = Database["public"]["Tables"]["suppliers"]["Row"] & {
+  contact?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  notes?: string | null;
+};
+
 export type SupplierInsert =
-  Database["public"]["Tables"]["suppliers"]["Insert"];
+  Database["public"]["Tables"]["suppliers"]["Insert"] & {
+    contact?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    address?: string | null;
+    notes?: string | null;
+  };
+
 export type SupplierUpdate =
-  Database["public"]["Tables"]["suppliers"]["Update"];
+  Database["public"]["Tables"]["suppliers"]["Update"] & {
+    contact?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    address?: string | null;
+    notes?: string | null;
+  };
 
 export type Shop = {
   id: string;
@@ -38,6 +58,8 @@ export type Product = Database["public"]["Tables"]["products"]["Row"] & {
   advance_payment?: number;
   remaining_amount?: number;
 };
+
+export type InvoiceType = "sales" | "product_addition";
 
 export type ProductInsert =
   Database["public"]["Tables"]["products"]["Insert"] & {
@@ -86,6 +108,37 @@ export type PaymentUpdate = {
   updated_at?: string | null;
 };
 
+export type PaymentFrequency = "monthly" | "weekly" | "bi-weekly";
+
+export type SalaryStructure = {
+  basic_salary: number;
+  allowances: number;
+  deductions: number;
+  bonuses: number;
+  overtime: number;
+};
+
+export type TaxDeduction = {
+  income_tax: number;
+  provident_fund: number;
+  insurance: number;
+  other_deductions: number;
+};
+
+export type Payroll = {
+  id: string;
+  employee_id: string;
+  payment_date: string;
+  gross_amount: number;
+  net_amount: number;
+  payment_frequency: PaymentFrequency;
+  salary_structure: SalaryStructure;
+  tax_deductions: TaxDeduction;
+  status: "pending" | "paid" | "cancelled";
+  created_at: string;
+  updated_at: string | null;
+};
+
 export type Employee = {
   id: string;
   name: string;
@@ -95,7 +148,11 @@ export type Employee = {
   address: string | null;
   hire_date: string | null;
   salary: number | null;
+  payment_frequency: PaymentFrequency | null;
+  salary_structure: SalaryStructure | null;
+  tax_deductions: TaxDeduction | null;
   status: string;
+  profile_image: string | null;
   created_at: string;
   updated_at: string | null;
 };
@@ -109,7 +166,11 @@ export type EmployeeInsert = {
   address?: string | null;
   hire_date?: string | null;
   salary?: number | null;
+  payment_frequency?: PaymentFrequency | null;
+  salary_structure?: SalaryStructure | null;
+  tax_deductions?: TaxDeduction | null;
   status?: string;
+  profile_image?: string | null;
   created_at?: string;
   updated_at?: string | null;
 };
@@ -123,6 +184,64 @@ export type EmployeeUpdate = {
   address?: string | null;
   hire_date?: string | null;
   salary?: number | null;
+  payment_frequency?: PaymentFrequency | null;
+  salary_structure?: SalaryStructure | null;
+  tax_deductions?: TaxDeduction | null;
+  status?: string;
+  profile_image?: string | null;
+  created_at?: string;
+  updated_at?: string | null;
+};
+
+export type PayrollInsert = {
+  id?: string;
+  employee_id: string;
+  payment_date?: string;
+  gross_amount: number;
+  net_amount: number;
+  payment_frequency: PaymentFrequency;
+  salary_structure: SalaryStructure;
+  tax_deductions: TaxDeduction;
+  status?: "pending" | "paid" | "cancelled";
+  created_at?: string;
+  updated_at?: string | null;
+};
+
+export type PayrollUpdate = {
+  id?: string;
+  employee_id?: string;
+  payment_date?: string;
+  gross_amount?: number;
+  net_amount?: number;
+  payment_frequency?: PaymentFrequency;
+  salary_structure?: SalaryStructure;
+  tax_deductions?: TaxDeduction;
+  status?: "pending" | "paid" | "cancelled";
+  created_at?: string;
+  updated_at?: string | null;
+};
+
+export type SalaryPayment = {
+  id: string;
+  employee_id: string;
+  amount: number;
+  payment_date: string;
+  payment_method: string | null;
+  reference_number: string | null;
+  notes: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string | null;
+};
+
+export type SalaryPaymentInsert = {
+  id?: string;
+  employee_id: string;
+  amount: number;
+  payment_date?: string;
+  payment_method?: string | null;
+  reference_number?: string | null;
+  notes?: string | null;
   status?: string;
   created_at?: string;
   updated_at?: string | null;

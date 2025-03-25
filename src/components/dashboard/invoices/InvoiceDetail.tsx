@@ -45,6 +45,12 @@ type Invoice = {
   products?: any[];
   invoice_items?: any[];
   payments?: any[];
+  invoice_type?: "sales" | "product_addition";
+  notes?: string;
+  customer_name?: string;
+  customer_phone?: string;
+  customer_id?: string;
+  customer_details?: any;
 };
 
 export function InvoiceDetail() {
@@ -95,6 +101,20 @@ export function InvoiceDetail() {
         }
       }
 
+      // Fetch customer details if customer_id is available
+      let customerData = null;
+      if (invoiceData.customer_id) {
+        const { data, error: customerError } = await supabase
+          .from("customers")
+          .select("*")
+          .eq("id", invoiceData.customer_id)
+          .single();
+
+        if (!customerError) {
+          customerData = data;
+        }
+      }
+
       // Fetch shop details
       let shopData = null;
       if (invoiceData.shop_id) {
@@ -113,10 +133,23 @@ export function InvoiceDetail() {
       const { data: invoiceItemsData, error: invoiceItemsError } =
         await supabase
           .from("invoice_items")
-          .select("*")
+          .select("*, products(name, barcode, watt)")
           .eq("invoice_id", invoiceId);
 
       if (invoiceItemsError) throw invoiceItemsError;
+
+      // Process invoice items to include product details
+      const processedInvoiceItems = invoiceItemsData?.map((item) => ({
+        ...item,
+        product_name:
+          item.product_name ||
+          (item.products && item.products.name) ||
+          "Unknown Product",
+        product_barcode:
+          item.barcode || (item.products && item.products.barcode) || null,
+        product_watt:
+          item.watt || (item.products && item.products.watt) || null,
+      }));
 
       // Fetch products associated with this invoice
       const { data: productsData, error: productsError } = await supabase
@@ -143,8 +176,9 @@ export function InvoiceDetail() {
         shop_phone: shopData?.phone || "",
         supplier_details: supplierData || {},
         shop_details: shopData || {},
+        customer_details: customerData || {},
         products: productsData || [],
-        invoice_items: invoiceItemsData || [],
+        invoice_items: processedInvoiceItems || [],
         payments: paymentsData || [],
       });
     } catch (error) {
@@ -289,6 +323,16 @@ export function InvoiceDetail() {
     );
   }
 
+  // Extract discount amount from notes if available (for sales invoices)
+  const getDiscountAmount = () => {
+    if (!invoice.notes) return 0;
+    const discountMatch = invoice.notes.match(/Discount: ([\d.]+)/);
+    return discountMatch ? parseFloat(discountMatch[1]) : 0;
+  };
+
+  const discountAmount = getDiscountAmount();
+  const subtotalBeforeDiscount = invoice.total_amount + discountAmount;
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -329,15 +373,33 @@ export function InvoiceDetail() {
         <CardContent className="p-8">
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">INVOICE</h1>
+              <h1 className="text-3xl font-bold text-gray-900">
+                {invoice.invoice_type === "product_addition"
+                  ? "PURCHASE INVOICE"
+                  : "SALES INVOICE"}
+              </h1>
               <p className="text-gray-500 mt-1">#{invoice.invoice_number}</p>
             </div>
-            <Badge
-              variant="outline"
-              className={`${getStatusColor(invoice.status)} text-sm px-3 py-1`}
-            >
-              {getStatusLabel(invoice.status)}
-            </Badge>
+            <div className="flex flex-col gap-2 items-end">
+              <Badge
+                variant="outline"
+                className={`${getStatusColor(invoice.status)} text-sm px-3 py-1`}
+              >
+                {getStatusLabel(invoice.status)}
+              </Badge>
+              {invoice.invoice_type && (
+                <Badge
+                  variant="outline"
+                  className={
+                    invoice.invoice_type === "sales"
+                      ? "border-green-200 bg-green-50 text-green-600"
+                      : "border-blue-200 bg-blue-50 text-blue-600"
+                  }
+                >
+                  {invoice.invoice_type === "sales" ? "Sales" : "Purchase"}
+                </Badge>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-8 mt-8">
@@ -356,12 +418,49 @@ export function InvoiceDetail() {
               <h3 className="text-sm font-medium text-gray-500 uppercase">
                 To
               </h3>
-              <p className="text-lg font-medium mt-1">{invoice.shop_name}</p>
-              {invoice.shop_address && (
-                <p className="text-gray-600 mt-1">{invoice.shop_address}</p>
-              )}
-              {invoice.shop_phone && (
-                <p className="text-gray-600">{invoice.shop_phone}</p>
+              {invoice.invoice_type === "sales" ? (
+                <div>
+                  <p className="text-lg font-medium mt-1">
+                    {invoice.customer_name ||
+                      invoice.customer_details?.name ||
+                      "Unknown Customer"}
+                  </p>
+                  <p className="text-gray-600">
+                    {invoice.customer_phone ||
+                      invoice.customer_details?.phone ||
+                      ""}
+                  </p>
+                  {invoice.customer_details?.email && (
+                    <p className="text-gray-600">
+                      {invoice.customer_details.email}
+                    </p>
+                  )}
+                  {invoice.customer_details?.address && (
+                    <p className="text-gray-600">
+                      {invoice.customer_details.address}
+                    </p>
+                  )}
+                  {invoice.customer_id && (
+                    <p className="text-gray-600 text-sm">
+                      Customer ID: {invoice.customer_id}
+                    </p>
+                  )}
+                  <p className="text-gray-600 mt-2 font-medium">
+                    Shop: {invoice.shop_details?.name || "Unknown Shop"}
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-lg font-medium mt-1">
+                    {invoice.shop_name}
+                  </p>
+                  {invoice.shop_address && (
+                    <p className="text-gray-600 mt-1">{invoice.shop_address}</p>
+                  )}
+                  {invoice.shop_phone && (
+                    <p className="text-gray-600">{invoice.shop_phone}</p>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -418,18 +517,25 @@ export function InvoiceDetail() {
                     <tr key={item.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         <div>
-                          <p>{item.product_name || "Unknown Product"}</p>
+                          <p>
+                            {item.product_name ||
+                              (item.product_id &&
+                                item.products &&
+                                item.products.name) ||
+                              item.name ||
+                              "Unknown Product"}
+                          </p>
                           <p className="text-xs text-gray-500">
                             Supplier: {item.supplier_name || "Unknown"}
                           </p>
-                          {item.product_barcode && (
+                          {(item.product_barcode || item.barcode) && (
                             <p className="text-xs text-gray-500">
-                              Barcode: {item.product_barcode}
+                              Barcode: {item.product_barcode || item.barcode}
                             </p>
                           )}
-                          {item.product_watt && (
+                          {(item.product_watt || item.watt) && (
                             <p className="text-xs text-gray-500">
-                              Wattage: {item.product_watt}W
+                              Wattage: {item.product_watt || item.watt}W
                             </p>
                           )}
                         </div>
@@ -446,32 +552,58 @@ export function InvoiceDetail() {
                     </tr>
                   ))
                 ) : invoice.products && invoice.products.length > 0 ? (
-                  invoice.products.map((product) => (
-                    <tr key={product.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        <div>
-                          <p>{product.name}</p>
-                          <p className="text-xs text-gray-500">
-                            Supplier: {product.supplier_name || "Unknown"}
-                          </p>
-                          {product.watt && (
+                  invoice.products.map((product) => {
+                    // Fetch supplier name for each product
+                    let supplierName = "Unknown";
+                    if (
+                      product.supplier_id &&
+                      invoice.supplier_details &&
+                      invoice.supplier_details.name
+                    ) {
+                      supplierName = invoice.supplier_details.name;
+                    }
+
+                    return (
+                      <tr key={product.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          <div>
+                            <p>{product.name || "Unknown Product"}</p>
                             <p className="text-xs text-gray-500">
-                              Wattage: {product.watt}W
+                              Supplier: {supplierName}
                             </p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {product.quantity}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        ${product.selling_price.toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        ${(product.quantity * product.selling_price).toFixed(2)}
-                      </td>
-                    </tr>
-                  ))
+                            {product.watt && (
+                              <p className="text-xs text-gray-500">
+                                Wattage: {product.watt}W
+                              </p>
+                            )}
+                            {product.barcode && (
+                              <p className="text-xs text-gray-500">
+                                Barcode: {product.barcode}
+                              </p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {product.quantity}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          $
+                          {invoice.invoice_type === "product_addition"
+                            ? product.buying_price.toFixed(2)
+                            : product.selling_price.toFixed(2)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          $
+                          {(
+                            product.quantity *
+                            (invoice.invoice_type === "product_addition"
+                              ? product.buying_price
+                              : product.selling_price)
+                          ).toFixed(2)}
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
                     <td
@@ -491,9 +623,23 @@ export function InvoiceDetail() {
               <div className="flex justify-between">
                 <p className="text-gray-600">Subtotal:</p>
                 <p className="font-medium">
-                  ${invoice.total_amount.toFixed(2)}
+                  ${subtotalBeforeDiscount.toFixed(2)}
                 </p>
               </div>
+              {invoice.invoice_type === "sales" && discountAmount > 0 && (
+                <>
+                  <div className="flex justify-between">
+                    <p className="text-gray-600">Discount Amount:</p>
+                    <p className="font-medium">${discountAmount.toFixed(2)}</p>
+                  </div>
+                  <div className="flex justify-between">
+                    <p className="text-gray-600">Total After Discount:</p>
+                    <p className="font-medium">
+                      ${invoice.total_amount.toFixed(2)}
+                    </p>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between">
                 <p className="text-gray-600">Initial Payment:</p>
                 <p className="font-medium">

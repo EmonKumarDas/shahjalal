@@ -10,7 +10,7 @@ export function DashboardLayout({ children }: { children?: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar for desktop */}
-      <div className="hidden md:block">
+      <div className="hidden md:block fixed h-screen z-30">
         <Sidebar />
       </div>
 
@@ -21,9 +21,11 @@ export function DashboardLayout({ children }: { children?: React.ReactNode }) {
         </SheetContent>
       </Sheet>
 
-      <div className="flex w-full flex-col">
+      <div className="flex w-full flex-col md:pl-[280px]">
         <Header onMenuClick={() => setSidebarOpen(true)} />
-        <main className="flex-1 p-4 md:p-6">{children || <Outlet />}</main>
+        <main className="flex-1 p-4 md:p-6 overflow-auto">
+          {children || <Outlet />}
+        </main>
       </div>
     </div>
   );

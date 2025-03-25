@@ -2,9 +2,6 @@ import { Suspense } from "react";
 import { Navigate, Route, Routes, useRoutes } from "react-router-dom";
 import routes from "tempo-routes";
 import LoginForm from "./components/auth/LoginForm";
-import SignUpForm from "./components/auth/SignUpForm";
-import ForgotPasswordForm from "./components/auth/ForgotPasswordForm";
-import ResetPasswordForm from "./components/auth/ResetPasswordForm";
 import Dashboard from "./components/pages/dashboard";
 import Products from "./components/pages/products";
 import Orders from "./components/pages/orders";
@@ -14,13 +11,14 @@ import Invoices from "./components/pages/invoices";
 import InvoiceDetailPage from "./components/pages/invoice-detail";
 import SellProduct from "./components/pages/sell-product";
 import Success from "./components/pages/success";
-import Home from "./components/pages/home";
 import Profile from "./components/pages/profile";
 import Employees from "./components/pages/employees";
 import Costs from "./components/pages/costs";
+import EmployeeSalaryPage from "./components/pages/employee-salary";
+import Customers from "./components/pages/customers";
 import { AuthProvider, useAuth } from "../supabase/auth";
 import { Toaster } from "./components/ui/toaster";
-import { LoadingScreen, LoadingSpinner } from "./components/ui/loading-spinner";
+import { LoadingScreen } from "./components/ui/loading-spinner";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -30,7 +28,7 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/" />;
   }
 
   return <>{children}</>;
@@ -54,32 +52,15 @@ function AppRoutes() {
   return (
     <>
       <Routes>
-        <Route path="/" element={<Home />} />
+        {/* Make login the default landing page */}
         <Route
-          path="/login"
+          path="/"
           element={
             <PublicRoute>
               <LoginForm />
             </PublicRoute>
           }
         />
-        <Route
-          path="/signup"
-          element={
-            <PublicRoute>
-              <SignUpForm />
-            </PublicRoute>
-          }
-        />
-        <Route
-          path="/forgot-password"
-          element={
-            <PublicRoute>
-              <ForgotPasswordForm />
-            </PublicRoute>
-          }
-        />
-        <Route path="/reset-password" element={<ResetPasswordForm />} />
         <Route
           path="/dashboard"
           element={
@@ -176,6 +157,26 @@ function AppRoutes() {
           }
         />
 
+        {/* Employee Salary route */}
+        <Route
+          path="/dashboard/employee-salary"
+          element={
+            <PrivateRoute>
+              <EmployeeSalaryPage />
+            </PrivateRoute>
+          }
+        />
+
+        {/* Customers route */}
+        <Route
+          path="/dashboard/customers"
+          element={
+            <PrivateRoute>
+              <Customers />
+            </PrivateRoute>
+          }
+        />
+
         {/* Add this before any catchall route */}
         {import.meta.env.VITE_TEMPO && <Route path="/tempobook/*" />}
 
@@ -188,6 +189,9 @@ function AppRoutes() {
             </PrivateRoute>
           }
         />
+
+        {/* Redirect all other routes to login */}
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
       {import.meta.env.VITE_TEMPO === "true" && useRoutes(routes)}
     </>

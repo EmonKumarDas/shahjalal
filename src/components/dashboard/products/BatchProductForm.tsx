@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import { Supplier, Shop } from "@/types/schema";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Calendar } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -54,6 +54,9 @@ export function BatchProductForm({
   const [advancePayment, setAdvancePayment] = useState<string>("0");
   const [remainingAmount, setRemainingAmount] = useState<string>("0");
   const [invoiceId, setInvoiceId] = useState<string>("");
+  const [date, setDate] = useState<string>(
+    new Date().toISOString().split("T")[0],
+  );
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -209,6 +212,16 @@ export function BatchProductForm({
             ? "paid"
             : "partially_paid";
 
+      // Get supplier name for the invoice
+      const { data: supplierData, error: supplierError } = await supabase
+        .from("suppliers")
+        .select("name")
+        .eq("id", supplierId)
+        .single();
+
+      if (supplierError)
+        console.error("Error fetching supplier:", supplierError);
+
       const { data: invoiceData, error: invoiceError } = await supabase
         .from("invoices")
         .insert({
@@ -219,7 +232,10 @@ export function BatchProductForm({
           status: invoiceStatus,
           supplier_id: supplierId,
           shop_id: shopId,
-          created_at: new Date().toISOString(),
+          invoice_type: "product_addition",
+          created_at: date
+            ? new Date(date).toISOString()
+            : new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
         .select();
@@ -229,39 +245,92 @@ export function BatchProductForm({
       const invoiceId = invoiceData[0].id;
       setInvoiceId(invoiceId);
 
-      const productsData = productRows.map((row) => ({
-        name: row.name.trim(),
-        buying_price: Number(row.buyingPrice),
-        selling_price: Number(row.sellingPrice),
-        quantity: Number(row.quantity),
-        barcode: row.barcode.trim() || null,
-        supplier_id: supplierId,
-        shop_id: shopId,
-        watt: row.watt ? Number(row.watt) : null,
+      // Process each product row
+      for (const row of productRows) {
+        // Case insensitive search for product with same name, supplier, and watt
+        const { data: existingProducts, error: searchError } = await supabase
+          .from("products")
+          .select("*, shops(name)")
+          .ilike("name", row.name.trim())
+          .eq("supplier_id", supplierId);
+
+        if (searchError) throw searchError;
+
+        // Find exact match with case insensitive name and matching watt
+        const matchingProduct = existingProducts?.find((p) => {
+          const productWatt = row.watt ? Number(row.watt) : null;
+          return (
+            p.name.toLowerCase() === row.name.trim().toLowerCase() &&
+            p.watt === productWatt
+          );
+        });
+
+        if (matchingProduct) {
+          // Update existing product quantity
+          const { error: updateError } = await supabase
+            .from("products")
+            .update({
+              quantity: matchingProduct.quantity + Number(row.quantity),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", matchingProduct.id);
+
+          if (updateError) throw updateError;
+        } else {
+          // Create new product
+          const { error: insertError } = await supabase
+            .from("products")
+            .insert({
+              name: row.name.trim(),
+              buying_price: Number(row.buyingPrice),
+              selling_price: Number(row.sellingPrice),
+              quantity: Number(row.quantity),
+              barcode: row.barcode.trim() || null,
+              supplier_id: supplierId,
+              shop_id: shopId,
+              watt: row.watt ? Number(row.watt) : null,
+              invoice_id: invoiceId,
+              created_at: date
+                ? new Date(date).toISOString()
+                : new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+
+          if (insertError) throw insertError;
+        }
+      }
+
+      // Create invoice items
+      const invoiceItemsData = productRows.map((row) => ({
         invoice_id: invoiceId,
+        product_name: row.name.trim(),
+        quantity: Number(row.quantity),
+        unit_price: Number(row.buyingPrice),
+        total_price: Number(row.buyingPrice) * Number(row.quantity),
+        supplier_name: supplierData?.name || "Unknown Supplier",
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        barcode: row.barcode.trim() || null,
+        watt: row.watt ? Number(row.watt) : null,
       }));
 
-      const { data, error } = await supabase
-        .from("products")
-        .insert(productsData)
-        .select();
+      const { error: invoiceItemsError } = await supabase
+        .from("invoice_items")
+        .insert(invoiceItemsData);
 
-      if (error) throw error;
+      if (invoiceItemsError) throw invoiceItemsError;
 
       toast({
-        title: "Products added",
-        description: `Successfully added ${productsData.length} product(s) and generated invoice #${invoiceNumber}`,
+        title: "Products processed",
+        description: `Successfully processed ${productRows.length} product(s) and generated invoice #${invoiceNumber}`,
       });
 
       navigate(`/dashboard/invoices/${invoiceId}`);
       onSuccess();
     } catch (error) {
-      console.error("Error adding products:", error);
+      console.error("Error processing products:", error);
       toast({
         variant: "destructive",
-        title: "Error adding products",
+        title: "Error processing products",
         description:
           error instanceof Error ? error.message : JSON.stringify(error),
       });
@@ -273,10 +342,27 @@ export function BatchProductForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-6 max-h-[80vh] overflow-auto pr-2"
+      className="space-y-6 max-h-[80vh] overflow-y-auto pr-2"
     >
       <div className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="date" className="flex items-center gap-1">
+              <Calendar className="h-4 w-4" />
+              Date *
+            </Label>
+            <Input
+              id="date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
+            />
+            <p className="text-sm text-gray-500">
+              Date for all products being added
+            </p>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="supplier">Supplier *</Label>
             <Select value={supplierId} onValueChange={setSupplierId}>
@@ -336,116 +422,136 @@ export function BatchProductForm({
             </Button>
           </div>
 
-          <div className="border rounded-md overflow-auto max-h-[400px]">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Product Name</TableHead>
-                  <TableHead>Buying Price</TableHead>
-                  <TableHead>Selling Price</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Total Price</TableHead>
-                  <TableHead>Watt</TableHead>
-                  <TableHead>Barcode</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {productRows.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell>
-                      <Input
-                        value={row.name}
-                        onChange={(e) =>
-                          updateRowField(row.id, "name", e.target.value)
-                        }
-                        placeholder="Product name"
-                        required
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={row.buyingPrice}
-                        onChange={(e) =>
-                          updateRowField(row.id, "buyingPrice", e.target.value)
-                        }
-                        placeholder="0.00"
-                        required
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={row.sellingPrice}
-                        onChange={(e) =>
-                          updateRowField(row.id, "sellingPrice", e.target.value)
-                        }
-                        placeholder="0.00"
-                        required
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={row.quantity}
-                        onChange={(e) =>
-                          updateRowField(row.id, "quantity", e.target.value)
-                        }
-                        placeholder="0"
-                        required
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        value={row.totalPrice || "0.00"}
-                        readOnly
-                        className="bg-gray-50"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={row.watt}
-                        onChange={(e) =>
-                          updateRowField(row.id, "watt", e.target.value)
-                        }
-                        placeholder="Watt"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        value={row.barcode}
-                        onChange={(e) =>
-                          updateRowField(row.id, "barcode", e.target.value)
-                        }
-                        placeholder="Barcode"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeRow(row.id)}
-                        disabled={productRows.length === 1}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+          <div className="border rounded-md overflow-x-auto">
+            <div className="min-w-[800px] max-h-[400px] overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[20%]">Product Name</TableHead>
+                    <TableHead className="w-[12%]">Buying Price</TableHead>
+                    <TableHead className="w-[12%]">Selling Price</TableHead>
+                    <TableHead className="w-[10%]">Quantity</TableHead>
+                    <TableHead className="w-[12%]">Total Price</TableHead>
+                    <TableHead className="w-[10%]">Watt</TableHead>
+                    <TableHead className="w-[15%]">Barcode</TableHead>
+                    <TableHead className="w-[5%]"></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {productRows.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell>
+                        <Input
+                          value={row.name}
+                          onChange={(e) =>
+                            updateRowField(row.id, "name", e.target.value)
+                          }
+                          placeholder="Product name"
+                          required
+                          className="w-full"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={row.buyingPrice}
+                          onChange={(e) =>
+                            updateRowField(
+                              row.id,
+                              "buyingPrice",
+                              e.target.value,
+                            )
+                          }
+                          placeholder="0.00"
+                          required
+                          className="w-full"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={row.sellingPrice}
+                          onChange={(e) =>
+                            updateRowField(
+                              row.id,
+                              "sellingPrice",
+                              e.target.value,
+                            )
+                          }
+                          placeholder="0.00"
+                          required
+                          className="w-full"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={row.quantity}
+                          onChange={(e) =>
+                            updateRowField(row.id, "quantity", e.target.value)
+                          }
+                          placeholder="0"
+                          required
+                          className="w-full"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          value={row.totalPrice || "0.00"}
+                          readOnly
+                          className="bg-gray-50 w-full"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={row.watt}
+                          onChange={(e) =>
+                            updateRowField(row.id, "watt", e.target.value)
+                          }
+                          placeholder="Watt"
+                          className="w-full"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={row.barcode}
+                          onChange={(e) =>
+                            updateRowField(row.id, "barcode", e.target.value)
+                          }
+                          placeholder="Barcode"
+                          className="w-full"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeRow(row.id)}
+                          disabled={productRows.length === 1}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
+          <p className="text-xs text-gray-500 italic mt-1">
+            Scroll horizontally if all columns are not visible on smaller
+            screens
+          </p>
         </div>
       </div>
 
@@ -453,7 +559,7 @@ export function BatchProductForm({
 
       <div className="space-y-4">
         <h3 className="text-lg font-medium">Payment Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           <div className="space-y-2">
             <Label htmlFor="totalAmount">Total Amount</Label>
             <Input
@@ -501,16 +607,17 @@ export function BatchProductForm({
         </div>
       </div>
 
-      <div className="flex justify-end gap-2 mt-6">
+      <div className="flex flex-col sm:flex-row sm:justify-end gap-2 mt-6">
         <Button
           type="button"
           variant="outline"
           onClick={onCancel}
           disabled={loading}
+          className="w-full sm:w-auto"
         >
           Cancel
         </Button>
-        <Button type="submit" disabled={loading}>
+        <Button type="submit" disabled={loading} className="w-full sm:w-auto">
           {loading ? (
             <span className="flex items-center gap-2">
               <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>

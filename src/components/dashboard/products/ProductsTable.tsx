@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../../../supabase/supabase";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -28,13 +29,24 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Plus, Search } from "lucide-react";
+import { Edit, Trash2, Plus, Search, RefreshCw } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { Product, Supplier } from "@/types/schema";
 import { ProductForm } from "./ProductForm";
 import { BatchProductForm } from "./BatchProductForm";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-type ProductWithSupplier = Product & { suppliers: Pick<Supplier, "name"> };
+type ProductWithSupplier = Product & {
+  suppliers: Pick<Supplier, "name">;
+  shop_name?: string;
+};
 
 export function ProductsTable() {
   const [products, setProducts] = useState<ProductWithSupplier[]>([]);
@@ -42,11 +54,21 @@ export function ProductsTable() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isRestockDialogOpen, setIsRestockDialogOpen] = useState(false);
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showLowStockOnly, setShowLowStockOnly] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [supplierFilter, setSupplierFilter] = useState<string>("all");
+  const [wattFilter, setWattFilter] = useState<string>("");
+  const [shopFilter, setShopFilter] = useState<string>("all");
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [shops, setShops] = useState<any[]>([]);
 
   useEffect(() => {
     fetchProducts();
+    fetchSuppliers();
+    fetchShops();
 
     const subscription = supabase
       .channel("products_changes")
@@ -64,18 +86,54 @@ export function ProductsTable() {
     };
   }, []);
 
+  async function fetchSuppliers() {
+    try {
+      const { data, error } = await supabase
+        .from("suppliers")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+      setSuppliers(data || []);
+    } catch (error) {
+      console.error("Error fetching suppliers:", error);
+      toast({
+        variant: "destructive",
+        title: "Error fetching suppliers",
+        description: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  async function fetchShops() {
+    try {
+      const { data, error } = await supabase
+        .from("shops")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+      setShops(data || []);
+    } catch (error) {
+      console.error("Error fetching shops:", error);
+      toast({
+        variant: "destructive",
+        title: "Error fetching shops",
+        description: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   async function fetchProducts() {
     try {
       setLoading(true);
-      // First, fetch all products
       const { data: productsData, error: productsError } = await supabase
         .from("products")
-        .select("*")
+        .select("*, shops(id, name)")
         .order("name");
 
       if (productsError) throw productsError;
 
-      // Get unique supplier IDs
       const supplierIds =
         productsData
           ?.filter((product) => product.supplier_id)
@@ -83,7 +141,6 @@ export function ProductsTable() {
 
       const uniqueSupplierIds = [...new Set(supplierIds)];
 
-      // If there are supplier IDs, fetch supplier data
       let supplierMap = {};
       if (uniqueSupplierIds.length > 0) {
         const { data: suppliersData, error: suppliersError } = await supabase
@@ -93,20 +150,21 @@ export function ProductsTable() {
 
         if (suppliersError) throw suppliersError;
 
-        // Create a map of supplier id to supplier name
         supplierMap = (suppliersData || []).reduce((map, supplier) => {
           map[supplier.id] = { name: supplier.name };
           return map;
         }, {});
       }
 
-      // Combine product data with supplier data
-      const productsWithSuppliers = (productsData || []).map((product) => ({
-        ...product,
-        suppliers: product.supplier_id
-          ? supplierMap[product.supplier_id]
-          : null,
-      }));
+      const productsWithSuppliers = (productsData || []).map((product) => {
+        return {
+          ...product,
+          suppliers: product.supplier_id
+            ? supplierMap[product.supplier_id]
+            : null,
+          shop_name: product.shops?.name || "N/A",
+        };
+      });
 
       setProducts(productsWithSuppliers);
     } catch (error) {
@@ -160,6 +218,11 @@ export function ProductsTable() {
     setIsDeleteDialogOpen(true);
   }
 
+  function handleRestockClick(product: Product) {
+    setCurrentProduct(product);
+    setIsRestockDialogOpen(true);
+  }
+
   const getStockStatus = (quantity: number) => {
     if (quantity <= 0) return { status: "out-of-stock", label: "Out of Stock" };
     if (quantity <= 5) return { status: "low-stock", label: "Low Stock" };
@@ -181,30 +244,125 @@ export function ProductsTable() {
 
   const filteredProducts = products.filter((product) => {
     const searchLower = searchQuery.toLowerCase();
-    return (
+    const matchesSearch =
       product.name.toLowerCase().includes(searchLower) ||
-      product.supplier?.name?.toLowerCase().includes(searchLower) ||
-      product.barcode?.toLowerCase().includes(searchLower)
-    );
+      product.suppliers?.name?.toLowerCase().includes(searchLower) ||
+      (product.barcode?.toLowerCase() || "").includes(searchLower);
+
+    const matchesSupplier =
+      supplierFilter === "all" || product.supplier_id === supplierFilter;
+
+    const matchesWatt =
+      !wattFilter ||
+      (product.watt !== null &&
+        product.watt !== undefined &&
+        product.watt.toString().includes(wattFilter));
+
+    const matchesShop = shopFilter === "all" || product.shop_id === shopFilter;
+
+    if (showLowStockOnly) {
+      return (
+        matchesSearch &&
+        matchesSupplier &&
+        matchesWatt &&
+        matchesShop &&
+        Number(product.quantity) <= 5
+      );
+    }
+
+    return matchesSearch && matchesSupplier && matchesWatt && matchesShop;
   });
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div className="relative w-full max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-          <Input
-            type="search"
-            placeholder="Search products..."
-            className="w-full bg-white pl-8"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+        <div className="flex flex-col sm:flex-row gap-2 w-full max-w-xl">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+            <Input
+              type="search"
+              placeholder="Search products..."
+              className="w-full bg-white pl-8"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <Button
+            variant={showLowStockOnly ? "default" : "outline"}
+            onClick={() => setShowLowStockOnly(!showLowStockOnly)}
+            className="whitespace-nowrap"
+          >
+            {showLowStockOnly ? "Show All" : "Show Low Stock Only"}
+          </Button>
+          <Button
+            variant={showFilters ? "default" : "outline"}
+            onClick={() => setShowFilters(!showFilters)}
+            className="whitespace-nowrap"
+          >
+            {showFilters ? "Hide Filters" : "Show Filters"}
+          </Button>
         </div>
         <Button onClick={() => setIsAddDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" /> Add Products
         </Button>
       </div>
+
+      {showFilters && (
+        <div className="bg-gray-50 p-4 rounded-lg border mb-4">
+          <h3 className="text-sm font-medium mb-3">Filter Products</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="supplierFilter" className="mb-1 block">
+                Supplier
+              </Label>
+              <Select value={supplierFilter} onValueChange={setSupplierFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Suppliers" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Suppliers</SelectItem>
+                  {suppliers.map((supplier) => (
+                    <SelectItem key={supplier.id} value={supplier.id}>
+                      {supplier.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="wattFilter" className="mb-1 block">
+                Watt
+              </Label>
+              <Input
+                id="wattFilter"
+                placeholder="Filter by watt"
+                value={wattFilter}
+                onChange={(e) => setWattFilter(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="shopFilter" className="mb-1 block">
+                Shop
+              </Label>
+              <Select value={shopFilter} onValueChange={setShopFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Shops" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Shops</SelectItem>
+                  {shops.map((shop) => (
+                    <SelectItem key={shop.id} value={shop.id}>
+                      {shop.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center items-center h-64">
@@ -213,7 +371,7 @@ export function ProductsTable() {
       ) : filteredProducts.length === 0 ? (
         <div className="text-center py-10 text-gray-500">
           {searchQuery
-            ? "No products match your search."
+            ? "No products match your search: " + searchQuery
             : "No products found. Add your first product to get started."}
         </div>
       ) : (
@@ -223,9 +381,12 @@ export function ProductsTable() {
               <TableRow>
                 <TableHead>Product</TableHead>
                 <TableHead>Supplier</TableHead>
+                <TableHead>Shop</TableHead>
                 <TableHead>Watt</TableHead>
-                <TableHead>Price</TableHead>
+                <TableHead>Buying Price</TableHead>
+                <TableHead>Selling Price</TableHead>
                 <TableHead>Stock</TableHead>
+                <TableHead>Added Date</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -239,11 +400,18 @@ export function ProductsTable() {
                       {product.name}
                     </TableCell>
                     <TableCell>{product.suppliers?.name || "N/A"}</TableCell>
+                    <TableCell>{product.shop_name}</TableCell>
                     <TableCell>{product.watt || "N/A"}</TableCell>
+                    <TableCell>
+                      ${Number(product.buying_price).toFixed(2)}
+                    </TableCell>
                     <TableCell>
                       ${Number(product.selling_price).toFixed(2)}
                     </TableCell>
                     <TableCell>{product.quantity}</TableCell>
+                    <TableCell>
+                      {format(new Date(product.created_at), "MMM dd, yyyy")}
+                    </TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"
@@ -254,6 +422,17 @@ export function ProductsTable() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                        {product.quantity <= 5 && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRestockClick(product)}
+                            title="Restock Product"
+                            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
@@ -324,6 +503,33 @@ export function ProductsTable() {
               }}
               onCancel={() => {
                 setIsEditDialogOpen(false);
+                setCurrentProduct(null);
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Restock Product Dialog */}
+      <Dialog open={isRestockDialogOpen} onOpenChange={setIsRestockDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Restock Product</DialogTitle>
+            <DialogDescription>
+              Update the quantity for this low stock product.
+            </DialogDescription>
+          </DialogHeader>
+          {currentProduct && (
+            <ProductForm
+              product={currentProduct}
+              isRestocking={true}
+              onSuccess={() => {
+                setIsRestockDialogOpen(false);
+                setCurrentProduct(null);
+                fetchProducts();
+              }}
+              onCancel={() => {
+                setIsRestockDialogOpen(false);
                 setCurrentProduct(null);
               }}
             />

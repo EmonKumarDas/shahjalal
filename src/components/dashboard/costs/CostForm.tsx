@@ -144,7 +144,7 @@ export function CostForm({ cost, onSuccess, onCancel }: CostFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
         <div className="space-y-2 md:col-span-2">
           <Label htmlFor="description">Description *</Label>
           <Input
@@ -235,16 +235,17 @@ export function CostForm({ cost, onSuccess, onCancel }: CostFormProps) {
         </div>
       </div>
 
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-col sm:flex-row sm:justify-end gap-2">
         <Button
           type="button"
           variant="outline"
           onClick={onCancel}
           disabled={loading}
+          className="w-full sm:w-auto"
         >
           Cancel
         </Button>
-        <Button type="submit" disabled={loading}>
+        <Button type="submit" disabled={loading} className="w-full sm:w-auto">
           {loading ? (
             <span className="flex items-center gap-2">
               <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>

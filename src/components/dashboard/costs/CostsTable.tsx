@@ -51,7 +51,7 @@ export function CostsTable() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [currentCost, setCurrentCost] = useState<OthersCost | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string>("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [categories, setCategories] = useState<string[]>([]);
 
   useEffect(() => {
@@ -169,9 +169,8 @@ export function CostsTable() {
       (cost.payment_method?.toLowerCase() || "").includes(searchLower) ||
       (cost.reference_number?.toLowerCase() || "").includes(searchLower);
 
-    const matchesCategory = categoryFilter
-      ? cost.category === categoryFilter
-      : true;
+    const matchesCategory =
+      categoryFilter === "all" || cost.category === categoryFilter;
 
     return matchesSearch && matchesCategory;
   });
@@ -200,7 +199,7 @@ export function CostsTable() {
               <SelectValue placeholder="All Categories" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Categories</SelectItem>
+              <SelectItem value="all">All Categories</SelectItem>
               {categories.map((category) => (
                 <SelectItem key={category} value={category}>
                   {category}

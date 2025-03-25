@@ -9,36 +9,173 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      attendance: {
+        Row: {
+          check_in: string | null
+          check_out: string | null
+          created_at: string | null
+          date: string
+          employee_id: string | null
+          id: string
+          notes: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          check_in?: string | null
+          check_out?: string | null
+          created_at?: string | null
+          date: string
+          employee_id?: string | null
+          id?: string
+          notes?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          check_in?: string | null
+          check_out?: string | null
+          created_at?: string | null
+          date?: string
+          employee_id?: string | null
+          id?: string
+          notes?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customers: {
+        Row: {
+          address: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string
+        }
+        Relationships: []
+      }
+      employees: {
+        Row: {
+          address: string | null
+          created_at: string | null
+          email: string | null
+          hire_date: string | null
+          id: string
+          last_salary_payment: string | null
+          name: string
+          payment_frequency: string | null
+          phone: string | null
+          position: string | null
+          profile_image: string | null
+          salary: number | null
+          salary_structure: Json | null
+          status: string | null
+          tax_deductions: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string | null
+          email?: string | null
+          hire_date?: string | null
+          id?: string
+          last_salary_payment?: string | null
+          name: string
+          payment_frequency?: string | null
+          phone?: string | null
+          position?: string | null
+          profile_image?: string | null
+          salary?: number | null
+          salary_structure?: Json | null
+          status?: string | null
+          tax_deductions?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string | null
+          email?: string | null
+          hire_date?: string | null
+          id?: string
+          last_salary_payment?: string | null
+          name?: string
+          payment_frequency?: string | null
+          phone?: string | null
+          position?: string | null
+          profile_image?: string | null
+          salary?: number | null
+          salary_structure?: Json | null
+          status?: string | null
+          tax_deductions?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       invoice_items: {
         Row: {
+          barcode: string | null
           created_at: string | null
           id: string
           invoice_id: string | null
           product_id: string | null
+          product_name: string | null
           quantity: number
           supplier_name: string | null
           total_price: number
           unit_price: number
+          watt: number | null
         }
         Insert: {
+          barcode?: string | null
           created_at?: string | null
           id?: string
           invoice_id?: string | null
           product_id?: string | null
+          product_name?: string | null
           quantity: number
           supplier_name?: string | null
           total_price: number
           unit_price: number
+          watt?: number | null
         }
         Update: {
+          barcode?: string | null
           created_at?: string | null
           id?: string
           invoice_id?: string | null
           product_id?: string | null
+          product_name?: string | null
           quantity?: number
           supplier_name?: string | null
           total_price?: number
           unit_price?: number
+          watt?: number | null
         }
         Relationships: [
           {
@@ -54,10 +191,12 @@ export type Database = {
         Row: {
           advance_payment: number
           created_at: string | null
+          customer_id: string | null
           customer_name: string | null
           customer_phone: string | null
           id: string
           invoice_number: string
+          invoice_type: string | null
           notes: string | null
           remaining_amount: number
           shop_id: string | null
@@ -69,10 +208,12 @@ export type Database = {
         Insert: {
           advance_payment?: number
           created_at?: string | null
+          customer_id?: string | null
           customer_name?: string | null
           customer_phone?: string | null
           id?: string
           invoice_number: string
+          invoice_type?: string | null
           notes?: string | null
           remaining_amount?: number
           shop_id?: string | null
@@ -84,10 +225,12 @@ export type Database = {
         Update: {
           advance_payment?: number
           created_at?: string | null
+          customer_id?: string | null
           customer_name?: string | null
           customer_phone?: string | null
           id?: string
           invoice_number?: string
+          invoice_type?: string | null
           notes?: string | null
           remaining_amount?: number
           shop_id?: string | null
@@ -105,6 +248,92 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      leave_requests: {
+        Row: {
+          approved_by: string | null
+          created_at: string | null
+          employee_id: string | null
+          end_date: string
+          id: string
+          leave_type: string
+          reason: string | null
+          start_date: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string | null
+          employee_id?: string | null
+          end_date: string
+          id?: string
+          leave_type: string
+          reason?: string | null
+          start_date: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string | null
+          employee_id?: string | null
+          end_date?: string
+          id?: string
+          leave_type?: string
+          reason?: string | null
+          start_date?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      others_costs: {
+        Row: {
+          amount: number
+          category: string | null
+          created_at: string | null
+          date: string | null
+          description: string
+          id: string
+          notes: string | null
+          payment_method: string | null
+          reference_number: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          category?: string | null
+          created_at?: string | null
+          date?: string | null
+          description: string
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          reference_number?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          created_at?: string | null
+          date?: string | null
+          description?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          reference_number?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       payments: {
         Row: {
@@ -138,6 +367,56 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      payrolls: {
+        Row: {
+          created_at: string | null
+          employee_id: string | null
+          gross_amount: number
+          id: string
+          net_amount: number
+          payment_date: string | null
+          payment_frequency: string | null
+          salary_structure: Json | null
+          status: string | null
+          tax_deductions: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          employee_id?: string | null
+          gross_amount: number
+          id?: string
+          net_amount: number
+          payment_date?: string | null
+          payment_frequency?: string | null
+          salary_structure?: Json | null
+          status?: string | null
+          tax_deductions?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          employee_id?: string | null
+          gross_amount?: number
+          id?: string
+          net_amount?: number
+          payment_date?: string | null
+          payment_frequency?: string | null
+          salary_structure?: Json | null
+          status?: string | null
+          tax_deductions?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payrolls_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products: {
         Row: {
@@ -211,6 +490,53 @@ export type Database = {
           },
         ]
       }
+      salary_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          employee_id: string
+          id: string
+          notes: string | null
+          payment_date: string
+          payment_method: string | null
+          reference_number: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          employee_id: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string | null
+          reference_number?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          employee_id?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string | null
+          reference_number?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salary_payments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shops: {
         Row: {
           address: string | null
@@ -238,6 +564,50 @@ export type Database = {
         }
         Relationships: []
       }
+      supplier_payments: {
+        Row: {
+          amount: number
+          created_at: string | null
+          id: string
+          notes: string | null
+          payment_date: string | null
+          payment_method: string | null
+          reference_number: string | null
+          supplier_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+          reference_number?: string | null
+          supplier_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+          reference_number?: string | null
+          supplier_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_payments_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppliers: {
         Row: {
           created_at: string | null
@@ -262,39 +632,33 @@ export type Database = {
       users: {
         Row: {
           avatar_url: string | null
-          created_at: string
+          created_at: string | null
           email: string | null
           full_name: string | null
           id: string
-          image: string | null
-          name: string | null
-          token_identifier: string
+          name: string
+          password: string
           updated_at: string | null
-          user_id: string | null
         }
         Insert: {
           avatar_url?: string | null
-          created_at?: string
-          email?: string | null
-          full_name?: string | null
-          id: string
-          image?: string | null
-          name?: string | null
-          token_identifier: string
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          avatar_url?: string | null
-          created_at?: string
+          created_at?: string | null
           email?: string | null
           full_name?: string | null
           id?: string
-          image?: string | null
-          name?: string | null
-          token_identifier?: string
+          name: string
+          password: string
           updated_at?: string | null
-          user_id?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          name?: string
+          password?: string
+          updated_at?: string | null
         }
         Relationships: []
       }

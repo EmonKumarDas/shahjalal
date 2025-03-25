@@ -1,4 +1,5 @@
-import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+import { supabase } from "../../../../supabase/supabase";
 import {
   Card,
   CardContent,
@@ -7,8 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Package, AlertTriangle } from "lucide-react";
+import { Package, AlertTriangle, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 type InventoryItem = {
   id: string;
@@ -43,6 +46,12 @@ export function InventoryAlerts() {
       status: "low",
     },
   ];
+
+  const navigate = useNavigate();
+
+  const handleRestockClick = () => {
+    navigate("/dashboard/products");
+  };
 
   return (
     <Card className="bg-white">
@@ -86,8 +95,13 @@ export function InventoryAlerts() {
         </div>
       </CardContent>
       <CardFooter>
-        <Button variant="outline" className="w-full">
-          View All Inventory
+        <Button
+          variant="outline"
+          className="w-full flex items-center gap-2"
+          onClick={handleRestockClick}
+        >
+          <RefreshCw className="h-4 w-4" />
+          Restock Inventory
         </Button>
       </CardFooter>
     </Card>

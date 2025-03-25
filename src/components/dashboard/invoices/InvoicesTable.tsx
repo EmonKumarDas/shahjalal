@@ -13,7 +13,14 @@ import { Badge } from "@/components/ui/badge";
 import { Eye, Download, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Invoice = {
   id: string;
@@ -27,14 +34,38 @@ type Invoice = {
   shop_id: string;
   supplier_name?: string;
   shop_name?: string;
+  invoice_type?: "sales" | "product_addition" | string;
 };
 
 export function InvoicesTable() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [invoiceTypeFilter, setInvoiceTypeFilter] = useState<
+    "all" | "sales" | "product_addition"
+  >("all");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "paid" | "partially_paid" | "unpaid" | "pending"
+  >("all");
+  const location = useLocation();
 
   useEffect(() => {
+    // Check for URL parameters
+    const urlParams = new URLSearchParams(location.search);
+    const filterParam = urlParams.get("filter");
+    const statusParam = urlParams.get("status");
+
+    if (filterParam) {
+      setInvoiceTypeFilter(filterParam as "all" | "sales" | "product_addition");
+    }
+
+    if (statusParam) {
+      const statuses = statusParam.split(",");
+      if (statuses.includes("unpaid") && statuses.includes("partially_paid")) {
+        setStatusFilter("pending");
+      }
+    }
+
     fetchInvoices();
 
     const subscription = supabase
@@ -51,16 +82,30 @@ export function InvoicesTable() {
     return () => {
       supabase.removeChannel(subscription);
     };
-  }, []);
+  }, [location.search]);
 
   async function fetchInvoices() {
     try {
       setLoading(true);
       // First, fetch all invoices
-      const { data: invoicesData, error: invoicesError } = await supabase
+      let query = supabase
         .from("invoices")
         .select("*")
         .order("created_at", { ascending: false });
+
+      // Apply invoice type filter if not 'all'
+      if (invoiceTypeFilter !== "all") {
+        query = query.eq("invoice_type", invoiceTypeFilter);
+      }
+
+      // Apply status filter if not 'all'
+      if (statusFilter === "pending") {
+        query = query.in("status", ["partially_paid", "unpaid"]);
+      } else if (statusFilter !== "all") {
+        query = query.eq("status", statusFilter);
+      }
+
+      const { data: invoicesData, error: invoicesError } = await query;
 
       if (invoicesError) throw invoicesError;
 
@@ -165,8 +210,8 @@ export function InvoicesTable() {
     const searchLower = searchQuery.toLowerCase();
     return (
       invoice.invoice_number.toLowerCase().includes(searchLower) ||
-      invoice.supplier_name?.toLowerCase().includes(searchLower) ||
-      invoice.shop_name?.toLowerCase().includes(searchLower)
+      (invoice.supplier_name?.toLowerCase() || "").includes(searchLower) ||
+      (invoice.shop_name?.toLowerCase() || "").includes(searchLower)
     );
   });
 
@@ -182,6 +227,49 @@ export function InvoicesTable() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
+        </div>
+        <div className="flex gap-2">
+          <Select
+            value={invoiceTypeFilter}
+            onValueChange={(value) =>
+              setInvoiceTypeFilter(
+                value as "all" | "sales" | "product_addition",
+              )
+            }
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="sales">Sales</SelectItem>
+              <SelectItem value="product_addition">Purchases</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={statusFilter}
+            onValueChange={(value) =>
+              setStatusFilter(
+                value as
+                  | "all"
+                  | "paid"
+                  | "partially_paid"
+                  | "unpaid"
+                  | "pending",
+              )
+            }
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="paid">Paid</SelectItem>
+              <SelectItem value="partially_paid">Partially Paid</SelectItem>
+              <SelectItem value="unpaid">Unpaid</SelectItem>
+              <SelectItem value="pending">Pending Payment</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

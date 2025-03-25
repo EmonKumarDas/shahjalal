@@ -20,9 +20,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Edit, Trash2, Plus } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Eye, Edit, Trash2, Plus, Search, DollarSign } from "lucide-react";
 import { Supplier } from "@/types/schema";
 import { toast } from "@/components/ui/use-toast";
+import { SupplierForm } from "./SupplierForm";
+import { SupplierDetails } from "./SupplierDetails";
 
 export function SuppliersTable() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -31,7 +34,8 @@ export function SuppliersTable() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [currentSupplier, setCurrentSupplier] = useState<Supplier | null>(null);
-  const [supplierName, setSupplierName] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
     fetchSuppliers();
@@ -55,6 +59,16 @@ export function SuppliersTable() {
   async function fetchSuppliers() {
     try {
       setLoading(true);
+
+      // Check if suppliers table has the required fields
+      const { data: tableInfo, error: tableError } = await supabase
+        .from("suppliers")
+        .select("contact, email, phone, address, notes")
+        .limit(1);
+
+      // If fields don't exist, they'll be null in the response but won't cause an error
+      // We'll handle this gracefully
+
       const { data, error } = await supabase
         .from("suppliers")
         .select("*")
@@ -71,80 +85,6 @@ export function SuppliersTable() {
       });
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function addSupplier() {
-    if (!supplierName.trim()) {
-      toast({
-        variant: "destructive",
-        title: "Validation Error",
-        description: "Supplier name is required",
-      });
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from("suppliers")
-        .insert([{ name: supplierName.trim() }])
-        .select();
-
-      if (error) throw error;
-
-      toast({
-        title: "Supplier added",
-        description: "The supplier has been added successfully",
-      });
-
-      setSupplierName("");
-      setIsAddDialogOpen(false);
-    } catch (error) {
-      console.error("Error adding supplier:", error);
-      toast({
-        variant: "destructive",
-        title: "Error adding supplier",
-        description: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-
-  async function updateSupplier() {
-    if (!currentSupplier || !supplierName.trim()) {
-      toast({
-        variant: "destructive",
-        title: "Validation Error",
-        description: "Supplier name is required",
-      });
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from("suppliers")
-        .update({
-          name: supplierName.trim(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", currentSupplier.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Supplier updated",
-        description: "The supplier has been updated successfully",
-      });
-
-      setSupplierName("");
-      setCurrentSupplier(null);
-      setIsEditDialogOpen(false);
-    } catch (error) {
-      console.error("Error updating supplier:", error);
-      toast({
-        variant: "destructive",
-        title: "Error updating supplier",
-        description: error instanceof Error ? error.message : String(error),
-      });
     }
   }
 
@@ -199,7 +139,6 @@ export function SuppliersTable() {
 
   function handleEditClick(supplier: Supplier) {
     setCurrentSupplier(supplier);
-    setSupplierName(supplier.name);
     setIsEditDialogOpen(true);
   }
 
@@ -208,160 +147,206 @@ export function SuppliersTable() {
     setIsDeleteDialogOpen(true);
   }
 
+  function handleViewDetails(supplier: Supplier) {
+    setCurrentSupplier(supplier);
+    setShowDetails(true);
+  }
+
+  const filteredSuppliers = suppliers.filter((supplier) => {
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      supplier.name.toLowerCase().includes(searchLower) ||
+      (supplier.contact?.toLowerCase() || "").includes(searchLower) ||
+      (supplier.email?.toLowerCase() || "").includes(searchLower) ||
+      (supplier.phone?.toLowerCase() || "").includes(searchLower)
+    );
+  });
+
   return (
-    <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">Suppliers</h2>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="flex items-center gap-1">
-              <Plus className="h-4 w-4" />
-              Add Supplier
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Supplier</DialogTitle>
-              <DialogDescription>
-                Enter the details for the new supplier.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">
-                  Name
-                </Label>
-                <Input
-                  id="name"
-                  value={supplierName}
-                  onChange={(e) => setSupplierName(e.target.value)}
-                  className="col-span-3"
-                  placeholder="Supplier name"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsAddDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button onClick={addSupplier}>Save</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      ) : suppliers.length === 0 ? (
-        <div className="text-center py-10 text-gray-500">
-          No suppliers found. Add your first supplier to get started.
-        </div>
+    <div className="space-y-6">
+      {showDetails && currentSupplier ? (
+        <SupplierDetails
+          supplier={currentSupplier}
+          onBack={() => setShowDetails(false)}
+          onSupplierUpdated={fetchSuppliers}
+        />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Created At</TableHead>
-              <TableHead>Updated At</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {suppliers.map((supplier) => (
-              <TableRow key={supplier.id}>
-                <TableCell className="font-medium">{supplier.name}</TableCell>
-                <TableCell>
-                  {new Date(supplier.created_at).toLocaleDateString()}
-                </TableCell>
-                <TableCell>
-                  {supplier.updated_at
-                    ? new Date(supplier.updated_at).toLocaleDateString()
-                    : "-"}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEditClick(supplier)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteClick(supplier)}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-
-      {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Supplier</DialogTitle>
-            <DialogDescription>Update the supplier details.</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-name" className="text-right">
-                Name
-              </Label>
+        <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
               <Input
-                id="edit-name"
-                value={supplierName}
-                onChange={(e) => setSupplierName(e.target.value)}
-                className="col-span-3"
+                type="search"
+                placeholder="Search suppliers..."
+                className="pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="flex items-center gap-1 w-full sm:w-auto">
+                  <Plus className="h-4 w-4" />
+                  Add Supplier
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-3xl">
+                <DialogHeader>
+                  <DialogTitle>Add New Supplier</DialogTitle>
+                  <DialogDescription>
+                    Enter the details for the new supplier.
+                  </DialogDescription>
+                </DialogHeader>
+                <SupplierForm
+                  onSuccess={() => {
+                    setIsAddDialogOpen(false);
+                    fetchSuppliers();
+                  }}
+                  onCancel={() => setIsAddDialogOpen(false)}
+                />
+              </DialogContent>
+            </Dialog>
           </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsEditDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={updateSupplier}>Save Changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this supplier? This action cannot
-              be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsDeleteDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={deleteSupplier}>
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          ) : filteredSuppliers.length === 0 ? (
+            <div className="text-center py-10 text-gray-500">
+              {searchQuery
+                ? "No suppliers match your search."
+                : "No suppliers found. Add your first supplier to get started."}
+            </div>
+          ) : (
+            <div className="rounded-md border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Contact
+                    </TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Email/Phone
+                    </TableHead>
+                    <TableHead className="hidden lg:table-cell">
+                      Created At
+                    </TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredSuppliers.map((supplier) => (
+                    <TableRow key={supplier.id}>
+                      <TableCell className="font-medium">
+                        {supplier.name}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {supplier.contact || "-"}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {supplier.email && (
+                          <div className="text-sm">{supplier.email}</div>
+                        )}
+                        {supplier.phone && (
+                          <div className="text-sm text-gray-500">
+                            {supplier.phone}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        {new Date(supplier.created_at).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleViewDetails(supplier)}
+                            title="View Details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditClick(supplier)}
+                            title="Edit Supplier"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteClick(supplier)}
+                            title="Delete Supplier"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          {/* Edit Dialog */}
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent className="max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>Edit Supplier</DialogTitle>
+                <DialogDescription>
+                  Update the supplier details.
+                </DialogDescription>
+              </DialogHeader>
+              {currentSupplier && (
+                <SupplierForm
+                  supplier={currentSupplier}
+                  onSuccess={() => {
+                    setIsEditDialogOpen(false);
+                    setCurrentSupplier(null);
+                    fetchSuppliers();
+                  }}
+                  onCancel={() => {
+                    setIsEditDialogOpen(false);
+                    setCurrentSupplier(null);
+                  }}
+                />
+              )}
+            </DialogContent>
+          </Dialog>
+
+          {/* Delete Confirmation Dialog */}
+          <Dialog
+            open={isDeleteDialogOpen}
+            onOpenChange={setIsDeleteDialogOpen}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Confirm Deletion</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to delete this supplier? This action
+                  cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsDeleteDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button variant="destructive" onClick={deleteSupplier}>
+                  Delete
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      )}
     </div>
   );
 }

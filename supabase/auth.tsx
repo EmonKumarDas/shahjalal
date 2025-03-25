@@ -1,130 +1,136 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { User, AuthError } from "@supabase/supabase-js";
-import { supabase } from "./supabase";
+import { User, createClient } from "@supabase/supabase-js";
 
-type AuthContextType = {
+// Create Supabase client
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+interface AuthContextType {
   user: User | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName: string) => Promise<void>;
+  signIn: (username: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
-  updatePassword: (password: string) => Promise<void>;
   getUserProfile: () => Promise<any>;
   updateUserProfile: (data: any) => Promise<void>;
-};
+}
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check active sessions and sets the user
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-
-      // Update last login time if user is logged in
-      if (session?.user) {
-        updateLastLogin(session.user.id);
+    const checkLoggedInUser = async () => {
+      try {
+        const storedUser = localStorage.getItem("user-data");
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          const userObject: User = {
+            id: userData.id,
+            app_metadata: {},
+            user_metadata: { full_name: userData.full_name },
+            aud: "authenticated",
+            created_at: userData.created_at,
+          } as User;
+          setUser(userObject);
+        }
+      } catch (error) {
+        console.error("Error checking logged in user:", error);
+      } finally {
+        setLoading(false);
       }
-    });
+    };
 
-    // Listen for changes on auth state (signed in, signed out, etc.)
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-
-      // Update last login time if user signs in
-      if (event === "SIGNED_IN" && session?.user) {
-        updateLastLogin(session.user.id);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    checkLoggedInUser();
   }, []);
 
-  // Helper function to update last login time
-  const updateLastLogin = async (userId: string) => {
+  const signIn = async (username: string, password: string) => {
     try {
-      await supabase
+      const { data: userData, error } = await supabase
         .from("users")
-        .update({ last_login: new Date().toISOString() })
-        .eq("id", userId);
+        .select("*")
+        .eq("name", username)
+        .single();
+
+      if (error) {
+        if (error.code === "PGRST116") {
+          throw new Error("User not found");
+        }
+        throw error;
+      }
+
+      if (!userData) {
+        throw new Error("User not found");
+      }
+
+      if (password !== userData.password) {
+        throw new Error("Invalid password");
+      }
+
+      const userObject: User = {
+        id: userData.id,
+        app_metadata: {},
+        user_metadata: { full_name: userData.full_name },
+        aud: "authenticated",
+        created_at: userData.created_at,
+      } as User;
+
+      setUser(userObject);
+      localStorage.setItem("user-data", JSON.stringify(userData));
     } catch (error) {
-      console.error("Error updating last login:", error);
+      console.error("Login error:", error);
+      throw error;
     }
   };
 
-  const signUp = async (email: string, password: string, fullName: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-        },
-      },
-    });
-    if (error) throw error;
-  };
-
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) throw error;
-  };
-
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-  };
-
-  const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    if (error) throw error;
-  };
-
-  const updatePassword = async (password: string) => {
-    const { error } = await supabase.auth.updateUser({
-      password,
-    });
-    if (error) throw error;
+    setUser(null);
+    localStorage.removeItem("user-data");
   };
 
   const getUserProfile = async () => {
     if (!user) throw new Error("User not authenticated");
 
-    const { data, error } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", user.id)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", user.id)
+        .single();
 
-    if (error) throw error;
-    return data;
+      if (error) throw error;
+      if (!data) throw new Error("User profile not found");
+
+      return data;
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      throw error;
+    }
   };
 
   const updateUserProfile = async (profileData: any) => {
     if (!user) throw new Error("User not authenticated");
 
-    const { error } = await supabase
-      .from("users")
-      .update({
-        ...profileData,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", user.id);
+    try {
+      const { error } = await supabase
+        .from("users")
+        .update(profileData)
+        .eq("id", user.id);
 
-    if (error) throw error;
+      if (error) throw error;
+
+      const updatedUserData = {
+        ...JSON.parse(localStorage.getItem("user-data") || "{}"),
+        ...profileData,
+      };
+      localStorage.setItem("user-data", JSON.stringify(updatedUserData));
+    } catch (error) {
+      console.error("Error updating user profile:", error);
+      throw error;
+    }
   };
 
   return (
@@ -133,10 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         loading,
         signIn,
-        signUp,
         signOut,
-        resetPassword,
-        updatePassword,
         getUserProfile,
         updateUserProfile,
       }}
@@ -144,12 +147,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
+};
 
-export function useAuth() {
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
-}
+};

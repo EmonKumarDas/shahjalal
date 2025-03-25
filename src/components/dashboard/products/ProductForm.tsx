@@ -12,15 +12,18 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import { Product, Supplier, Shop } from "@/types/schema";
+import { RefreshCw, Calendar, Percent, Tag } from "lucide-react";
 
 interface ProductFormProps {
   product?: Product;
+  isRestocking?: boolean;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
 export function ProductForm({
   product,
+  isRestocking = false,
   onSuccess,
   onCancel,
 }: ProductFormProps) {
@@ -46,9 +49,15 @@ export function ProductForm({
   const [remainingAmount, setRemainingAmount] = useState<string>(
     product?.remaining_amount?.toString() || "0",
   );
+  const [discount, setDiscount] = useState<string>("0");
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(false);
+  const [date, setDate] = useState<string>(
+    product?.created_at
+      ? new Date(product.created_at).toISOString().split("T")[0]
+      : new Date().toISOString().split("T")[0],
+  );
 
   useEffect(() => {
     fetchSuppliers();
@@ -61,6 +70,19 @@ export function ProductForm({
     const advance = Number(advancePayment) || 0;
     setRemainingAmount(Math.max(0, selling - advance).toString());
   }, [sellingPrice, advancePayment]);
+
+  // Calculate selling price with markup applied to buying price
+  useEffect(() => {
+    if (discount && buyingPrice) {
+      const buying = Number(buyingPrice) || 0;
+      const markupValue = Number(discount) || 0;
+      if (markupValue > 0) {
+        const markupAmount = (buying * markupValue) / 100;
+        const newSellingPrice = buying + markupAmount;
+        setSellingPrice(newSellingPrice.toFixed(2));
+      }
+    }
+  }, [buyingPrice, discount]);
 
   async function fetchSuppliers() {
     try {
@@ -97,6 +119,36 @@ export function ProductForm({
         title: "Error fetching shops",
         description: error instanceof Error ? error.message : String(error),
       });
+    }
+  }
+
+  async function checkExistingProduct() {
+    if (!name.trim() || !supplierId) return null;
+
+    try {
+      // Case insensitive search for product with same name, supplier, and watt
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .ilike("name", name.trim())
+        .eq("supplier_id", supplierId);
+
+      if (error) throw error;
+
+      // Find exact match with case insensitive name and matching watt
+      const matchingProduct = data?.find((p) => {
+        const productWatt = watt ? Number(watt) : null;
+        return (
+          p.name.toLowerCase() === name.trim().toLowerCase() &&
+          p.watt === productWatt &&
+          (!product || p.id !== product.id)
+        ); // Exclude current product when editing
+      });
+
+      return matchingProduct || null;
+    } catch (error) {
+      console.error("Error checking existing product:", error);
+      return null;
     }
   }
 
@@ -190,6 +242,9 @@ export function ProductForm({
     try {
       setLoading(true);
 
+      // Check for existing product with same name, supplier, and watt (case insensitive)
+      const existingProduct = await checkExistingProduct();
+
       const productData = {
         name: name.trim(),
         buying_price: Number(buyingPrice),
@@ -201,6 +256,9 @@ export function ProductForm({
         watt: watt ? Number(watt) : null,
         advance_payment: Number(advancePayment),
         remaining_amount: Number(remainingAmount),
+        created_at: date
+          ? new Date(date).toISOString()
+          : new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
 
@@ -213,6 +271,22 @@ export function ProductForm({
           .update(productData)
           .eq("id", product.id)
           .select();
+      } else if (existingProduct) {
+        // Update existing product if found with same name, supplier, and watt
+        const updatedQuantity = existingProduct.quantity + Number(quantity);
+        result = await supabase
+          .from("products")
+          .update({
+            ...productData,
+            quantity: updatedQuantity,
+          })
+          .eq("id", existingProduct.id)
+          .select();
+
+        toast({
+          title: "Product updated",
+          description: `Found existing product "${existingProduct.name}". Updated quantity to ${updatedQuantity}.`,
+        });
       } else {
         // Create new product
         result = await supabase.from("products").insert([productData]).select();
@@ -220,12 +294,14 @@ export function ProductForm({
 
       if (result.error) throw result.error;
 
-      toast({
-        title: product ? "Product updated" : "Product created",
-        description: product
-          ? "The product has been updated successfully"
-          : "The product has been created successfully",
-      });
+      if (!existingProduct) {
+        toast({
+          title: product ? "Product updated" : "Product created",
+          description: product
+            ? "The product has been updated successfully"
+            : "The product has been created successfully",
+        });
+      }
 
       onSuccess();
     } catch (error) {
@@ -242,7 +318,18 @@ export function ProductForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {isRestocking && (
+        <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
+          <h3 className="text-blue-800 font-medium flex items-center gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Restocking Mode
+          </h3>
+          <p className="text-blue-600 text-sm mt-1">
+            This product is low on stock. Update the quantity to restock it.
+          </p>
+        </div>
+      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
         <div className="space-y-2">
           <Label htmlFor="name">Product Name *</Label>
           <Input
@@ -250,6 +337,20 @@ export function ProductForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Enter product name"
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="date" className="flex items-center gap-1">
+            <Calendar className="h-4 w-4" />
+            Date *
+          </Label>
+          <Input
+            id="date"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
             required
           />
         </div>
@@ -306,6 +407,25 @@ export function ProductForm({
         </div>
 
         <div className="space-y-2">
+          <Label htmlFor="discount" className="flex items-center gap-1">
+            <Tag className="h-4 w-4" />
+            Markup Percentage
+          </Label>
+          <Input
+            id="discount"
+            type="number"
+            step="0.01"
+            min="0"
+            value={discount}
+            onChange={(e) => setDiscount(e.target.value)}
+            placeholder="0"
+          />
+          <p className="text-xs text-gray-500">
+            Markup % to apply on buying price to calculate selling price
+          </p>
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor="sellingPrice">Selling Price *</Label>
           <Input
             id="sellingPrice"
@@ -320,7 +440,12 @@ export function ProductForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="quantity">Quantity *</Label>
+          <Label
+            htmlFor="quantity"
+            className={isRestocking ? "text-blue-700 font-medium" : ""}
+          >
+            Quantity *
+          </Label>
           <Input
             id="quantity"
             type="number"
@@ -329,7 +454,17 @@ export function ProductForm({
             onChange={(e) => setQuantity(e.target.value)}
             placeholder="0"
             required
+            className={
+              isRestocking
+                ? "border-blue-300 focus:border-blue-500 focus:ring-blue-500"
+                : ""
+            }
           />
+          {isRestocking && (
+            <p className="text-xs text-blue-600 mt-1">
+              Current stock: {product?.quantity || 0} units
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -383,23 +518,38 @@ export function ProductForm({
         </div>
       </div>
 
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-col sm:flex-row justify-end gap-2 mt-6">
         <Button
           type="button"
           variant="outline"
           onClick={onCancel}
           disabled={loading}
+          className="w-full sm:w-auto"
         >
           Cancel
         </Button>
-        <Button type="submit" disabled={loading}>
+        <Button
+          type="submit"
+          disabled={loading}
+          className={`w-full sm:w-auto ${isRestocking ? "bg-blue-600 hover:bg-blue-700" : ""}`}
+        >
           {loading ? (
             <span className="flex items-center gap-2">
               <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-              {product ? "Updating..." : "Creating..."}
+              {isRestocking
+                ? "Restocking..."
+                : product
+                  ? "Updating..."
+                  : "Creating..."}
             </span>
           ) : (
-            <>{product ? "Update Product" : "Create Product"}</>
+            <>
+              {isRestocking
+                ? "Restock Product"
+                : product
+                  ? "Update Product"
+                  : "Create Product"}
+            </>
           )}
         </Button>
       </div>

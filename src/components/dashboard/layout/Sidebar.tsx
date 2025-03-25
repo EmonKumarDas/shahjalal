@@ -8,6 +8,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { LanguageSwitcher } from "@/components/ui/language-switcher";
+import { useTranslation } from "react-i18next";
 import {
   BarChart3,
   Box,
@@ -124,6 +127,12 @@ const financeItems: NavItem[] = [
     color: "text-teal-600",
   },
   {
+    title: "Employee Salary",
+    icon: <Users className="h-5 w-5" />,
+    href: "/dashboard/employee-salary",
+    color: "text-purple-600",
+  },
+  {
     title: "Reports",
     icon: <BarChart3 className="h-5 w-5" />,
     href: "/dashboard/reports",
@@ -150,6 +159,7 @@ export default function Sidebar({
   activeItem = "Dashboard",
   onItemClick = () => {},
 }: SidebarProps) {
+  const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
 
@@ -261,6 +271,10 @@ export default function Sidebar({
 
       <div className="p-4 mt-auto border-t border-gray-200">
         {renderNavSection(settingsItems, "Support")}
+        <div className="flex justify-center gap-2 mt-4">
+          <ThemeToggle />
+          <LanguageSwitcher />
+        </div>
       </div>
     </div>
   );
