@@ -18,12 +18,10 @@ import {
   CreditCard,
   LayoutDashboard,
   Package,
-  Settings,
   ShoppingCart,
   TrendingUp,
   Truck,
   Users,
-  HelpCircle,
   Store,
   FileText,
   ChevronLeft,
@@ -37,6 +35,7 @@ type NavItem = {
   icon: React.ReactNode;
   href: string;
   color?: string;
+  translationKey?: string;
 };
 
 interface SidebarProps {
@@ -50,6 +49,7 @@ const dashboardItems: NavItem[] = [
     icon: <LayoutDashboard className="h-5 w-5" />,
     href: "/dashboard",
     color: "text-blue-600",
+    translationKey: "dashboard",
   },
 ];
 
@@ -59,24 +59,28 @@ const inventoryItems: NavItem[] = [
     icon: <Store className="h-5 w-5" />,
     href: "/dashboard/shops",
     color: "text-orange-600",
+    translationKey: "shops",
   },
   {
     title: "Suppliers",
     icon: <Truck className="h-5 w-5" />,
     href: "/dashboard/suppliers",
     color: "text-yellow-600",
+    translationKey: "suppliers",
   },
   {
     title: "Products",
     icon: <Package className="h-5 w-5" />,
     href: "/dashboard/products",
     color: "text-violet-600",
+    translationKey: "products",
   },
   {
     title: "Employees",
     icon: <Users className="h-5 w-5" />,
     href: "/dashboard/employees",
     color: "text-cyan-600",
+    translationKey: "employees",
   },
 ];
 
@@ -86,30 +90,42 @@ const salesItems: NavItem[] = [
     icon: <ShoppingCart className="h-5 w-5" />,
     href: "/dashboard/sell-product",
     color: "text-green-600",
+    translationKey: "sellProduct",
   },
   {
     title: "Orders",
     icon: <ClipboardList className="h-5 w-5" />,
     href: "/dashboard/orders",
     color: "text-pink-600",
+    translationKey: "orders",
   },
   {
     title: "Invoices",
     icon: <FileText className="h-5 w-5" />,
     href: "/dashboard/invoices",
     color: "text-purple-600",
+    translationKey: "invoices",
+  },
+  {
+    title: "Returns",
+    icon: <Box className="h-5 w-5" />,
+    href: "/dashboard/returns",
+    color: "text-red-600",
+    translationKey: "returns",
   },
   {
     title: "Sales",
     icon: <TrendingUp className="h-5 w-5" />,
     href: "/dashboard/sales",
     color: "text-green-600",
+    translationKey: "sales",
   },
   {
     title: "Customers",
     icon: <Users className="h-5 w-5" />,
     href: "/dashboard/customers",
     color: "text-blue-600",
+    translationKey: "customers",
   },
 ];
 
@@ -119,39 +135,28 @@ const financeItems: NavItem[] = [
     icon: <CreditCard className="h-5 w-5" />,
     href: "/dashboard/accounting",
     color: "text-red-600",
+    translationKey: "accounting",
   },
   {
     title: "Other Costs",
     icon: <Box className="h-5 w-5" />,
     href: "/dashboard/costs",
     color: "text-teal-600",
+    translationKey: "otherCosts",
   },
   {
     title: "Employee Salary",
     icon: <Users className="h-5 w-5" />,
     href: "/dashboard/employee-salary",
     color: "text-purple-600",
+    translationKey: "employeeSalary",
   },
   {
     title: "Reports",
     icon: <BarChart3 className="h-5 w-5" />,
     href: "/dashboard/reports",
     color: "text-indigo-600",
-  },
-];
-
-const settingsItems: NavItem[] = [
-  {
-    title: "Settings",
-    icon: <Settings className="h-5 w-5" />,
-    href: "/dashboard/settings",
-    color: "text-gray-600",
-  },
-  {
-    title: "Help",
-    icon: <HelpCircle className="h-5 w-5" />,
-    href: "/dashboard/help",
-    color: "text-gray-600",
+    translationKey: "reports",
   },
 ];
 
@@ -167,7 +172,7 @@ export default function Sidebar({
     <div className="space-y-1.5">
       {!collapsed && (
         <h3 className="text-xs font-medium px-4 py-1 text-gray-500 uppercase tracking-wider">
-          {title}
+          {t(title)}
         </h3>
       )}
       <TooltipProvider delayDuration={0}>
@@ -197,12 +202,16 @@ export default function Sidebar({
                   >
                     {item.icon}
                   </span>
-                  {!collapsed && <span>{item.title}</span>}
+                  {!collapsed && (
+                    <span>{t(item.translationKey || item.title)}</span>
+                  )}
                 </Link>
               </Button>
             </TooltipTrigger>
             {collapsed && (
-              <TooltipContent side="right">{item.title}</TooltipContent>
+              <TooltipContent side="right">
+                {t(item.translationKey || item.title)}
+              </TooltipContent>
             )}
           </Tooltip>
         ))}
@@ -252,26 +261,25 @@ export default function Sidebar({
             collapsed && "hidden",
           )}
         >
-          ElectroShop
+          {t("electroshop")}
         </h2>
         <p className={cn("text-sm text-gray-500", collapsed && "hidden")}>
-          Manage your inventory
+          {t("manageInventory")}
         </p>
       </div>
 
       <ScrollArea className="flex-1 px-4">
-        {renderNavSection(dashboardItems, "Overview")}
+        {renderNavSection(dashboardItems, "overview")}
         <Separator className="my-4 bg-gray-100" />
-        {renderNavSection(inventoryItems, "Inventory")}
+        {renderNavSection(inventoryItems, "inventory")}
         <Separator className="my-4 bg-gray-100" />
-        {renderNavSection(salesItems, "Sales")}
+        {renderNavSection(salesItems, "sales")}
         <Separator className="my-4 bg-gray-100" />
-        {renderNavSection(financeItems, "Finance")}
+        {renderNavSection(financeItems, "finance")}
       </ScrollArea>
 
       <div className="p-4 mt-auto border-t border-gray-200">
-        {renderNavSection(settingsItems, "Support")}
-        <div className="flex justify-center gap-2 mt-4">
+        <div className="flex justify-center gap-2">
           <ThemeToggle />
           <LanguageSwitcher />
         </div>

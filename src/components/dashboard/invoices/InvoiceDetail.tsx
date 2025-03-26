@@ -6,8 +6,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/use-toast";
-import { ArrowLeft, Download, Printer, Plus } from "lucide-react";
+import { ArrowLeft, Download, Printer, Plus, RotateCcw } from "lucide-react";
 import { usePDF } from "react-to-pdf";
+import { ReturnForm } from "../returns/ReturnForm";
 import {
   Dialog,
   DialogContent,
@@ -62,6 +63,7 @@ export function InvoiceDetail() {
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [paymentNotes, setPaymentNotes] = useState("");
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+  const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
   const navigate = useNavigate();
   const { toPDF, targetRef } = usePDF({
     filename: `invoice-${invoice?.invoice_number}.pdf`,
@@ -133,7 +135,7 @@ export function InvoiceDetail() {
       const { data: invoiceItemsData, error: invoiceItemsError } =
         await supabase
           .from("invoice_items")
-          .select("*, products(name, barcode, watt)")
+          .select("*, products(id, name, barcode, watt)")
           .eq("invoice_id", invoiceId);
 
       if (invoiceItemsError) throw invoiceItemsError;
@@ -141,6 +143,7 @@ export function InvoiceDetail() {
       // Process invoice items to include product details
       const processedInvoiceItems = invoiceItemsData?.map((item) => ({
         ...item,
+        product_id: (item.products && item.products.id) || item.product_id,
         product_name:
           item.product_name ||
           (item.products && item.products.name) ||
@@ -323,15 +326,22 @@ export function InvoiceDetail() {
     );
   }
 
-  // Extract discount amount from notes if available (for sales invoices)
+  // Extract discount amount and subtotal from notes if available (for sales invoices)
   const getDiscountAmount = () => {
     if (!invoice.notes) return 0;
     const discountMatch = invoice.notes.match(/Discount: ([\d.]+)/);
     return discountMatch ? parseFloat(discountMatch[1]) : 0;
   };
 
+  const getSubtotalFromNotes = () => {
+    if (!invoice.notes) return 0;
+    const subtotalMatch = invoice.notes.match(/Subtotal: ([\d.]+)/);
+    return subtotalMatch ? parseFloat(subtotalMatch[1]) : 0;
+  };
+
   const discountAmount = getDiscountAmount();
-  const subtotalBeforeDiscount = invoice.total_amount + discountAmount;
+  const subtotalBeforeDiscount =
+    getSubtotalFromNotes() || invoice.total_amount + discountAmount;
 
   return (
     <div className="space-y-6">
@@ -360,6 +370,15 @@ export function InvoiceDetail() {
           >
             <Printer className="h-4 w-4" /> Print
           </Button>
+          {invoice.invoice_type === "sales" && (
+            <Button
+              variant="outline"
+              onClick={() => setIsReturnDialogOpen(true)}
+              className="flex items-center gap-2 border-orange-200 bg-orange-50 text-orange-600 hover:bg-orange-100"
+            >
+              <RotateCcw className="h-4 w-4" /> Initiate Return
+            </Button>
+          )}
           <Button onClick={() => toPDF()} className="flex items-center gap-2">
             <Download className="h-4 w-4" /> Download PDF
           </Button>
@@ -761,6 +780,30 @@ export function InvoiceDetail() {
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Return Products Dialog */}
+      <Dialog open={isReturnDialogOpen} onOpenChange={setIsReturnDialogOpen}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Initiate Product Return</DialogTitle>
+            <DialogDescription>
+              Create a return request for items from invoice #
+              {invoice.invoice_number}
+            </DialogDescription>
+          </DialogHeader>
+          <ReturnForm
+            invoice={invoice}
+            onSuccess={() => {
+              setIsReturnDialogOpen(false);
+              toast({
+                title: "Return initiated",
+                description: "Return request has been created successfully",
+              });
+            }}
+            onCancel={() => setIsReturnDialogOpen(false)}
+          />
         </DialogContent>
       </Dialog>
     </div>

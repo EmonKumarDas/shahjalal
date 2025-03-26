@@ -16,6 +16,7 @@ import Employees from "./components/pages/employees";
 import Costs from "./components/pages/costs";
 import EmployeeSalaryPage from "./components/pages/employee-salary";
 import Customers from "./components/pages/customers";
+import Returns from "./components/pages/returns";
 import { AuthProvider, useAuth } from "../supabase/auth";
 import { Toaster } from "./components/ui/toaster";
 import { LoadingScreen } from "./components/ui/loading-spinner";
@@ -173,6 +174,16 @@ function AppRoutes() {
           element={
             <PrivateRoute>
               <Customers />
+            </PrivateRoute>
+          }
+        />
+
+        {/* Returns route */}
+        <Route
+          path="/dashboard/returns"
+          element={
+            <PrivateRoute>
+              <Returns />
             </PrivateRoute>
           }
         />

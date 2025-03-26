@@ -315,7 +315,7 @@ export function SellProductForm() {
           customer_phone: customerPhone || null,
           customer_id: customerId,
           invoice_type: "sales",
-          notes: `Discount: ${discountAmount.toFixed(2)}, Tax: ${taxAmount.toFixed(2)}`,
+          notes: `Discount: ${discountAmount.toFixed(2)}, Tax: ${taxAmount.toFixed(2)}, Subtotal: ${subtotal.toFixed(2)}`,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })

@@ -87,6 +87,7 @@ export type Database = {
           email: string | null
           hire_date: string | null
           id: string
+          last_automated_salary_date: string | null
           last_salary_payment: string | null
           name: string
           payment_frequency: string | null
@@ -105,6 +106,7 @@ export type Database = {
           email?: string | null
           hire_date?: string | null
           id?: string
+          last_automated_salary_date?: string | null
           last_salary_payment?: string | null
           name: string
           payment_frequency?: string | null
@@ -123,6 +125,7 @@ export type Database = {
           email?: string | null
           hire_date?: string | null
           id?: string
+          last_automated_salary_date?: string | null
           last_salary_payment?: string | null
           name?: string
           payment_frequency?: string | null
@@ -377,6 +380,7 @@ export type Database = {
           net_amount: number
           payment_date: string | null
           payment_frequency: string | null
+          payment_type: number | null
           salary_structure: Json | null
           status: string | null
           tax_deductions: Json | null
@@ -390,6 +394,7 @@ export type Database = {
           net_amount: number
           payment_date?: string | null
           payment_frequency?: string | null
+          payment_type?: number | null
           salary_structure?: Json | null
           status?: string | null
           tax_deductions?: Json | null
@@ -403,6 +408,7 @@ export type Database = {
           net_amount?: number
           payment_date?: string | null
           payment_frequency?: string | null
+          payment_type?: number | null
           salary_structure?: Json | null
           status?: string | null
           tax_deductions?: Json | null
@@ -414,6 +420,60 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_returns: {
+        Row: {
+          created_at: string | null
+          customer_id: string | null
+          id: string
+          invoice_id: string | null
+          notes: string | null
+          refund_amount: number
+          return_reason: string
+          status: string | null
+          total_amount: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id?: string | null
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          refund_amount: number
+          return_reason: string
+          status?: string | null
+          total_amount: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string | null
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          refund_amount?: number
+          return_reason?: string
+          status?: string | null
+          total_amount?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_returns_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_returns_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
         ]
@@ -490,6 +550,54 @@ export type Database = {
           },
         ]
       }
+      return_items: {
+        Row: {
+          condition: string
+          created_at: string | null
+          id: string
+          product_id: string | null
+          quantity: number
+          return_id: string | null
+          total_price: number
+          unit_price: number
+        }
+        Insert: {
+          condition: string
+          created_at?: string | null
+          id?: string
+          product_id?: string | null
+          quantity: number
+          return_id?: string | null
+          total_price: number
+          unit_price: number
+        }
+        Update: {
+          condition?: string
+          created_at?: string | null
+          id?: string
+          product_id?: string | null
+          quantity?: number
+          return_id?: string | null
+          total_price?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "return_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "return_items_return_id_fkey"
+            columns: ["return_id"]
+            isOneToOne: false
+            referencedRelation: "product_returns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       salary_payments: {
         Row: {
           amount: number
@@ -499,6 +607,7 @@ export type Database = {
           notes: string | null
           payment_date: string
           payment_method: string | null
+          payment_type: string | null
           reference_number: string | null
           status: string
           updated_at: string | null
@@ -511,6 +620,7 @@ export type Database = {
           notes?: string | null
           payment_date?: string
           payment_method?: string | null
+          payment_type?: string | null
           reference_number?: string | null
           status?: string
           updated_at?: string | null
@@ -523,6 +633,7 @@ export type Database = {
           notes?: string | null
           payment_date?: string
           payment_method?: string | null
+          payment_type?: string | null
           reference_number?: string | null
           status?: string
           updated_at?: string | null
