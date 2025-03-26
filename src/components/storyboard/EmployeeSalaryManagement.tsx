@@ -323,7 +323,7 @@ export default function EmployeeSalaryManagement() {
           <Card key={employee.id} className="overflow-hidden w-full">
             <CardContent className="p-4 sm:p-6 overflow-hidden">
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-                <Avatar className="h-12 w-12 border border-gray-200">
+                <Avatar className="h-12 w-12 border border-gray-200 flex-shrink-0">
                   {employee.profile_image ? (
                     <AvatarImage
                       src={employee.profile_image}
@@ -340,7 +340,7 @@ export default function EmployeeSalaryManagement() {
                 </Avatar>
 
                 <div className="flex-1 w-full text-center sm:text-left overflow-hidden">
-                  <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start gap-2 sm:gap-0">
+                  <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start gap-2 sm:gap-4">
                     <div>
                       <h3 className="font-medium">{employee.name}</h3>
                       <p className="text-sm text-gray-500">
@@ -393,17 +393,17 @@ export default function EmployeeSalaryManagement() {
                     </div>
                   </div>
 
-                  <div className="mt-4 flex flex-col sm:flex-row justify-center sm:justify-end gap-2">
+                  <div className="mt-4 flex flex-wrap justify-center sm:justify-end gap-2 sm:gap-3">
                     <Button
                       variant="outline"
-                      className="flex items-center gap-1 w-full xs:w-auto"
+                      className="flex items-center justify-center gap-1 w-full sm:w-auto min-w-[120px] px-3 py-2 text-sm"
                       onClick={() => handleViewDetails(employee)}
                     >
                       <FileText className="h-4 w-4" />
-                      View Details
+                      Details
                     </Button>
                     <Button
-                      className="flex items-center gap-1 bg-green-600 hover:bg-green-700 w-full xs:w-auto"
+                      className="flex items-center justify-center gap-1 bg-green-600 hover:bg-green-700 w-full sm:w-auto min-w-[120px] px-3 py-2 text-sm"
                       onClick={() => openDatePicker(employee, true)}
                       disabled={
                         isProcessingSalary ||
@@ -420,7 +420,7 @@ export default function EmployeeSalaryManagement() {
                     </Button>
                     <Button
                       variant="outline"
-                      className="flex items-center gap-1 w-full xs:w-auto"
+                      className="flex items-center justify-center gap-1 w-full sm:w-auto min-w-[120px] px-3 py-2 text-sm"
                       onClick={() => openDatePicker(employee, false)}
                       disabled={isProcessingSalary}
                     >

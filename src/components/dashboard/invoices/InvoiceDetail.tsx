@@ -326,22 +326,15 @@ export function InvoiceDetail() {
     );
   }
 
-  // Extract discount amount and subtotal from notes if available (for sales invoices)
+  // Extract discount amount from notes if available (for sales invoices)
   const getDiscountAmount = () => {
     if (!invoice.notes) return 0;
     const discountMatch = invoice.notes.match(/Discount: ([\d.]+)/);
     return discountMatch ? parseFloat(discountMatch[1]) : 0;
   };
 
-  const getSubtotalFromNotes = () => {
-    if (!invoice.notes) return 0;
-    const subtotalMatch = invoice.notes.match(/Subtotal: ([\d.]+)/);
-    return subtotalMatch ? parseFloat(subtotalMatch[1]) : 0;
-  };
-
   const discountAmount = getDiscountAmount();
-  const subtotalBeforeDiscount =
-    getSubtotalFromNotes() || invoice.total_amount + discountAmount;
+  const subtotalBeforeDiscount = invoice.total_amount + discountAmount;
 
   return (
     <div className="space-y-6">

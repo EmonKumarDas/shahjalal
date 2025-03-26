@@ -558,6 +558,7 @@ export type Database = {
           product_id: string | null
           quantity: number
           return_id: string | null
+          return_reason: string | null
           total_price: number
           unit_price: number
         }
@@ -568,6 +569,7 @@ export type Database = {
           product_id?: string | null
           quantity: number
           return_id?: string | null
+          return_reason?: string | null
           total_price: number
           unit_price: number
         }
@@ -578,6 +580,7 @@ export type Database = {
           product_id?: string | null
           quantity?: number
           return_id?: string | null
+          return_reason?: string | null
           total_price?: number
           unit_price?: number
         }
@@ -749,6 +752,7 @@ export type Database = {
           id: string
           name: string
           password: string
+          role: string | null
           updated_at: string | null
         }
         Insert: {
@@ -759,6 +763,7 @@ export type Database = {
           id?: string
           name: string
           password: string
+          role?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -769,6 +774,7 @@ export type Database = {
           id?: string
           name?: string
           password?: string
+          role?: string | null
           updated_at?: string | null
         }
         Relationships: []
