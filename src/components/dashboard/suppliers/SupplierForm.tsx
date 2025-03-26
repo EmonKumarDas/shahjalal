@@ -24,6 +24,9 @@ export function SupplierForm({
   const [phone, setPhone] = useState(supplier?.phone || "");
   const [address, setAddress] = useState(supplier?.address || "");
   const [notes, setNotes] = useState(supplier?.notes || "");
+  const [created_at] = useState(
+    supplier?.created_at || new Date().toISOString(),
+  );
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -58,6 +61,7 @@ export function SupplierForm({
         phone: phone.trim() || null,
         address: address.trim() || null,
         notes: notes.trim() || null,
+        created_at: created_at,
         updated_at: new Date().toISOString(),
       };
 
@@ -74,12 +78,7 @@ export function SupplierForm({
         // Create new supplier
         result = await supabase
           .from("suppliers")
-          .insert([
-            {
-              ...supplierData,
-              created_at: new Date().toISOString(),
-            },
-          ])
+          .insert([supplierData])
           .select();
       }
 

@@ -11,8 +11,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
-import { Supplier, Shop } from "@/types/schema";
-import { Trash2, Plus, Calendar } from "lucide-react";
+import { Supplier, Shop, Product } from "@/types/schema";
+import { Trash2, Plus, Calendar, Search } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   Table,
   TableBody,
@@ -37,6 +50,9 @@ interface ProductRow {
   quantity: string;
   barcode: string;
   watt: string;
+  size: string;
+  color: string;
+  model: string;
   totalPrice?: string;
 }
 
@@ -57,6 +73,10 @@ export function BatchProductForm({
   const [date, setDate] = useState<string>(
     new Date().toISOString().split("T")[0],
   );
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeRowId, setActiveRowId] = useState<string>("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -64,6 +84,17 @@ export function BatchProductForm({
     fetchShops();
     addNewRow();
   }, []);
+
+  useEffect(() => {
+    if (searchQuery && searchQuery.trim().length >= 1) {
+      searchProducts(searchQuery);
+    } else if (searchQuery === "") {
+      // Show recent products when search is cleared
+      fetchRecentProducts();
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchQuery]);
 
   useEffect(() => {
     let total = 0;
@@ -80,6 +111,83 @@ export function BatchProductForm({
     const advance = Number(advancePayment) || 0;
     setRemainingAmount(Math.max(0, total - advance).toFixed(2));
   }, [totalAmount, advancePayment]);
+
+  async function fetchRecentProducts() {
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      setSearchResults(data || []);
+    } catch (error) {
+      console.error("Error fetching recent products:", error);
+    }
+  }
+
+  async function searchProducts(query: string) {
+    try {
+      console.log("Searching for products with query:", query);
+      // Search by name, barcode, or model in a single query
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .or(
+          `name.ilike.%${query}%,barcode.ilike.%${query}%,model.ilike.%${query}%`,
+        )
+        .limit(20);
+
+      if (error) throw error;
+
+      console.log("Search results:", data);
+      setSearchResults(data || []);
+    } catch (error) {
+      console.error("Error searching products:", error);
+      toast({
+        variant: "destructive",
+        title: "Search Error",
+        description: "Failed to search products. Please try again.",
+      });
+    }
+  }
+
+  const handleSelectProduct = (selectedProduct: Product, rowId: string) => {
+    setProductRows((prev) =>
+      prev.map((row) => {
+        if (row.id === rowId) {
+          return {
+            ...row,
+            name: selectedProduct.name || "",
+            buyingPrice: selectedProduct.buying_price?.toString() || "",
+            sellingPrice: selectedProduct.selling_price?.toString() || "",
+            barcode: selectedProduct.barcode || "",
+            watt: selectedProduct.watt?.toString() || "",
+            size: selectedProduct.size || "",
+            color: selectedProduct.color || "",
+            model: selectedProduct.model || "",
+            quantity: selectedProduct.quantity?.toString() || row.quantity,
+            totalPrice: (
+              (Number(selectedProduct.buying_price) || 0) *
+              (Number(selectedProduct.quantity) || Number(row.quantity) || 0)
+            ).toFixed(2),
+          };
+        }
+        return row;
+      }),
+    );
+
+    // Close the search popover and reset the search query
+    setIsSearchOpen(false);
+    setSearchQuery("");
+    setActiveRowId("");
+
+    toast({
+      title: "Product selected",
+      description: `${selectedProduct.name} has been loaded into the form.`,
+    });
+  };
 
   async function fetchSuppliers() {
     try {
@@ -128,6 +236,9 @@ export function BatchProductForm({
       quantity: "0",
       barcode: "",
       watt: "",
+      size: "",
+      color: "",
+      model: "",
       totalPrice: "0",
     };
     setProductRows((prev) => [...prev, newRow]);
@@ -289,6 +400,9 @@ export function BatchProductForm({
               supplier_id: supplierId,
               shop_id: shopId,
               watt: row.watt ? Number(row.watt) : null,
+              size: row.size.trim() || null,
+              color: row.color.trim() || null,
+              model: row.model.trim() || null,
               invoice_id: invoiceId,
               created_at: date
                 ? new Date(date).toISOString()
@@ -340,15 +454,15 @@ export function BatchProductForm({
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-6 max-h-[80vh] overflow-y-auto pr-2"
-    >
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="date" className="flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="space-y-2 bg-gray-50 p-4 rounded-lg border border-gray-100">
+            <Label
+              htmlFor="date"
+              className="flex items-center gap-1 text-sm font-medium"
+            >
+              <Calendar className="h-4 w-4 text-primary" />
               Date *
             </Label>
             <Input
@@ -357,16 +471,19 @@ export function BatchProductForm({
               value={date}
               onChange={(e) => setDate(e.target.value)}
               required
+              className="bg-white"
             />
-            <p className="text-sm text-gray-500">
+            <p className="text-xs text-gray-500">
               Date for all products being added
             </p>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="supplier">Supplier *</Label>
+          <div className="space-y-2 bg-gray-50 p-4 rounded-lg border border-gray-100">
+            <Label htmlFor="supplier" className="text-sm font-medium">
+              Supplier *
+            </Label>
             <Select value={supplierId} onValueChange={setSupplierId}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-white">
                 <SelectValue placeholder="Select a supplier" />
               </SelectTrigger>
               <SelectContent>
@@ -377,15 +494,17 @@ export function BatchProductForm({
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-sm text-gray-500">
+            <p className="text-xs text-gray-500">
               All products will be assigned to this supplier
             </p>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="shop">Shop *</Label>
+          <div className="space-y-2 bg-gray-50 p-4 rounded-lg border border-gray-100">
+            <Label htmlFor="shop" className="text-sm font-medium">
+              Shop *
+            </Label>
             <Select value={shopId} onValueChange={setShopId}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-white">
                 <SelectValue placeholder="Select a shop" />
               </SelectTrigger>
               <SelectContent>
@@ -396,7 +515,7 @@ export function BatchProductForm({
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-sm text-gray-500">
+            <p className="text-xs text-gray-500">
               All products will be assigned to this shop
             </p>
             {shops.length === 0 && (
@@ -407,33 +526,57 @@ export function BatchProductForm({
           </div>
         </div>
 
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <Label>Products</Label>
+        <div className="space-y-3">
+          <div className="flex justify-between items-center bg-gray-50 p-4 rounded-lg border border-gray-100">
+            <div className="flex items-center gap-2">
+              <div className="bg-primary/10 p-1.5 rounded-md">
+                <Plus className="h-4 w-4 text-primary" />
+              </div>
+              <Label className="font-medium">Products</Label>
+            </div>
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={addNewRow}
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 bg-white hover:bg-primary hover:text-white transition-colors"
             >
               <Plus className="h-3.5 w-3.5" />
               Add Product
             </Button>
           </div>
 
-          <div className="border rounded-md overflow-x-auto">
-            <div className="min-w-[800px] max-h-[400px] overflow-y-auto">
+          <div className="border rounded-lg overflow-x-auto shadow-sm">
+            <div className="min-w-[800px]">
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-gray-50">
                   <TableRow>
-                    <TableHead className="w-[20%]">Product Name</TableHead>
-                    <TableHead className="w-[12%]">Buying Price</TableHead>
-                    <TableHead className="w-[12%]">Selling Price</TableHead>
-                    <TableHead className="w-[10%]">Quantity</TableHead>
-                    <TableHead className="w-[12%]">Total Price</TableHead>
-                    <TableHead className="w-[10%]">Watt</TableHead>
-                    <TableHead className="w-[15%]">Barcode</TableHead>
+                    <TableHead className="w-[15%] font-semibold">
+                      Product Name
+                    </TableHead>
+                    <TableHead className="w-[8%] font-semibold">
+                      Buying Price
+                    </TableHead>
+                    <TableHead className="w-[8%] font-semibold">
+                      Selling Price
+                    </TableHead>
+                    <TableHead className="w-[6%] font-semibold">
+                      Quantity
+                    </TableHead>
+                    <TableHead className="w-[8%] font-semibold">
+                      Total Price
+                    </TableHead>
+                    <TableHead className="w-[6%] font-semibold">Watt</TableHead>
+                    <TableHead className="w-[10%] font-semibold">
+                      Barcode
+                    </TableHead>
+                    <TableHead className="w-[8%] font-semibold">Size</TableHead>
+                    <TableHead className="w-[8%] font-semibold">
+                      Color
+                    </TableHead>
+                    <TableHead className="w-[8%] font-semibold">
+                      Model
+                    </TableHead>
                     <TableHead className="w-[5%]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -441,15 +584,94 @@ export function BatchProductForm({
                   {productRows.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell>
-                        <Input
-                          value={row.name}
-                          onChange={(e) =>
-                            updateRowField(row.id, "name", e.target.value)
-                          }
-                          placeholder="Product name"
-                          required
-                          className="w-full"
-                        />
+                        <div className="relative">
+                          <Input
+                            value={row.name}
+                            onChange={(e) =>
+                              updateRowField(row.id, "name", e.target.value)
+                            }
+                            placeholder="Product name"
+                            required
+                            className="w-full pr-10"
+                          />
+                          <Popover
+                            open={isSearchOpen && activeRowId === row.id}
+                            onOpenChange={(open) => {
+                              setIsSearchOpen(open);
+                              if (open) setActiveRowId(row.id);
+                            }}
+                          >
+                            <PopoverTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="absolute right-0 top-0 h-full px-3 py-2 text-gray-400 hover:text-gray-600 bg-transparent"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setActiveRowId(row.id);
+                                  setIsSearchOpen(true);
+                                  // Trigger search with empty query to show recent products
+                                  fetchRecentProducts();
+                                }}
+                              >
+                                <Search className="h-4 w-4 text-gray-600" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                              align="start"
+                              side="bottom"
+                              sideOffset={5}
+                              alignOffset={-10}
+                              className="w-[300px] p-0"
+                            >
+                              <Command>
+                                <CommandInput
+                                  placeholder="Search by name, barcode, or model..."
+                                  value={searchQuery}
+                                  onValueChange={setSearchQuery}
+                                  autoFocus
+                                />
+                                <CommandList>
+                                  <CommandEmpty>
+                                    <div className="p-2 text-center">
+                                      <p>No products found</p>
+                                      <p className="text-xs text-gray-500 mt-1">
+                                        Try a different search term or add a new
+                                        product
+                                      </p>
+                                    </div>
+                                  </CommandEmpty>
+                                  <CommandGroup heading="Products">
+                                    {searchResults.map((product) => (
+                                      <CommandItem
+                                        key={product.id}
+                                        value={product.id}
+                                        onSelect={() =>
+                                          handleSelectProduct(product, row.id)
+                                        }
+                                      >
+                                        <div className="flex flex-col">
+                                          <span className="font-medium">
+                                            {product.name}
+                                          </span>
+                                          <span className="text-xs text-gray-500">
+                                            {product.watt &&
+                                              `${product.watt}W • `}
+                                            {product.barcode &&
+                                              `${product.barcode} • `}
+                                            {product.quantity !== undefined &&
+                                              `Current Stock: ${product.quantity}`}
+                                          </span>
+                                        </div>
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Input
@@ -531,6 +753,36 @@ export function BatchProductForm({
                         />
                       </TableCell>
                       <TableCell>
+                        <Input
+                          value={row.size}
+                          onChange={(e) =>
+                            updateRowField(row.id, "size", e.target.value)
+                          }
+                          placeholder="Size"
+                          className="w-full"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={row.color}
+                          onChange={(e) =>
+                            updateRowField(row.id, "color", e.target.value)
+                          }
+                          placeholder="Color"
+                          className="w-full"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={row.model}
+                          onChange={(e) =>
+                            updateRowField(row.id, "model", e.target.value)
+                          }
+                          placeholder="Model"
+                          className="w-full"
+                        />
+                      </TableCell>
+                      <TableCell>
                         <Button
                           type="button"
                           variant="ghost"
@@ -557,11 +809,18 @@ export function BatchProductForm({
 
       <Separator className="my-6" />
 
-      <div className="space-y-4">
-        <h3 className="text-lg font-medium">Payment Information</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-          <div className="space-y-2">
-            <Label htmlFor="totalAmount">Total Amount</Label>
+      <div className="space-y-4 bg-gray-50 p-6 rounded-lg border border-gray-100">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="bg-primary/10 p-1.5 rounded-md">
+            <Calendar className="h-4 w-4 text-primary" />
+          </div>
+          <h3 className="text-lg font-medium">Payment Information</h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="space-y-2 bg-white p-4 rounded-lg border border-gray-100">
+            <Label htmlFor="totalAmount" className="text-sm font-medium">
+              Total Amount
+            </Label>
             <Input
               id="totalAmount"
               type="number"
@@ -569,7 +828,7 @@ export function BatchProductForm({
               min="0"
               value={totalAmount}
               onChange={(e) => setTotalAmount(e.target.value)}
-              className="bg-gray-50"
+              className="bg-gray-50 font-medium text-primary"
               readOnly
             />
             <p className="text-xs text-gray-500">
@@ -577,8 +836,10 @@ export function BatchProductForm({
             </p>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="advancePayment">Advance Payment</Label>
+          <div className="space-y-2 bg-white p-4 rounded-lg border border-gray-100">
+            <Label htmlFor="advancePayment" className="text-sm font-medium">
+              Advance Payment
+            </Label>
             <Input
               id="advancePayment"
               type="number"
@@ -591,13 +852,15 @@ export function BatchProductForm({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="remainingAmount">Remaining Amount</Label>
+          <div className="space-y-2 bg-white p-4 rounded-lg border border-gray-100">
+            <Label htmlFor="remainingAmount" className="text-sm font-medium">
+              Remaining Amount
+            </Label>
             <Input
               id="remainingAmount"
               type="number"
               value={remainingAmount}
-              className="bg-gray-50"
+              className="bg-gray-50 font-medium text-destructive"
               readOnly
             />
             <p className="text-xs text-gray-500">
@@ -607,7 +870,7 @@ export function BatchProductForm({
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:justify-end gap-2 mt-6">
+      <div className="flex flex-col sm:flex-row sm:justify-end gap-3 mt-8 pt-6 border-t">
         <Button
           type="button"
           variant="outline"
@@ -617,7 +880,11 @@ export function BatchProductForm({
         >
           Cancel
         </Button>
-        <Button type="submit" disabled={loading} className="w-full sm:w-auto">
+        <Button
+          type="submit"
+          disabled={loading}
+          className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-white shadow-md"
+        >
           {loading ? (
             <span className="flex items-center gap-2">
               <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>

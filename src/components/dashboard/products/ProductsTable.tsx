@@ -42,6 +42,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useNavigate } from "react-router-dom";
 
 type ProductWithSupplier = Product & {
   suppliers: Pick<Supplier, "name">;
@@ -51,7 +52,6 @@ type ProductWithSupplier = Product & {
 export function ProductsTable() {
   const [products, setProducts] = useState<ProductWithSupplier[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isRestockDialogOpen, setIsRestockDialogOpen] = useState(false);
@@ -64,6 +64,7 @@ export function ProductsTable() {
   const [shopFilter, setShopFilter] = useState<string>("all");
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [shops, setShops] = useState<any[]>([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchProducts();
@@ -302,7 +303,7 @@ export function ProductsTable() {
             {showFilters ? "Hide Filters" : "Show Filters"}
           </Button>
         </div>
-        <Button onClick={() => setIsAddDialogOpen(true)}>
+        <Button onClick={() => navigate("/dashboard/products/add")}>
           <Plus className="mr-2 h-4 w-4" /> Add Products
         </Button>
       </div>
@@ -383,6 +384,9 @@ export function ProductsTable() {
                 <TableHead>Supplier</TableHead>
                 <TableHead>Shop</TableHead>
                 <TableHead>Watt</TableHead>
+                <TableHead>Size</TableHead>
+                <TableHead>Color</TableHead>
+                <TableHead>Model</TableHead>
                 <TableHead>Buying Price</TableHead>
                 <TableHead>Selling Price</TableHead>
                 <TableHead>Stock</TableHead>
@@ -402,6 +406,9 @@ export function ProductsTable() {
                     <TableCell>{product.suppliers?.name || "N/A"}</TableCell>
                     <TableCell>{product.shop_name}</TableCell>
                     <TableCell>{product.watt || "N/A"}</TableCell>
+                    <TableCell>{product.size || "N/A"}</TableCell>
+                    <TableCell>{product.color || "N/A"}</TableCell>
+                    <TableCell>{product.model || "N/A"}</TableCell>
                     <TableCell>
                       ${Number(product.buying_price).toFixed(2)}
                     </TableCell>
@@ -456,35 +463,6 @@ export function ProductsTable() {
           </Table>
         </div>
       )}
-
-      {/* Add Product Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="max-w-5xl">
-          <DialogHeader>
-            <DialogTitle>Add New Products</DialogTitle>
-            <DialogDescription>
-              Add one or multiple products at once.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end mb-4">
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setIsAddDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-          <BatchProductForm
-            onSuccess={() => {
-              setIsAddDialogOpen(false);
-              fetchProducts();
-            }}
-            onCancel={() => setIsAddDialogOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
 
       {/* Edit Product Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

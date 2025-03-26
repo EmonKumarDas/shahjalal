@@ -12,7 +12,29 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import { Product, Supplier, Shop } from "@/types/schema";
-import { RefreshCw, Calendar, Percent, Tag } from "lucide-react";
+import {
+  RefreshCw,
+  Calendar,
+  Percent,
+  Tag,
+  Search,
+  Palette,
+  Ruler,
+  Smartphone,
+} from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 interface ProductFormProps {
   product?: Product;
@@ -43,6 +65,9 @@ export function ProductForm({
   );
   const [shopId, setShopId] = useState<string>(product?.shop_id || "");
   const [watt, setWatt] = useState<string>(product?.watt?.toString() || "");
+  const [size, setSize] = useState<string>(product?.size || "");
+  const [color, setColor] = useState<string>(product?.color || "");
+  const [model, setModel] = useState<string>(product?.model || "");
   const [advancePayment, setAdvancePayment] = useState<string>(
     product?.advance_payment?.toString() || "0",
   );
@@ -58,11 +83,22 @@ export function ProductForm({
       ? new Date(product.created_at).toISOString().split("T")[0]
       : new Date().toISOString().split("T")[0],
   );
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     fetchSuppliers();
     fetchShops();
   }, []);
+
+  useEffect(() => {
+    if (searchQuery && searchQuery.trim().length >= 2) {
+      searchProducts(searchQuery);
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchQuery]);
 
   // Calculate remaining amount when selling price or advance payment changes
   useEffect(() => {
@@ -100,6 +136,22 @@ export function ProductForm({
         title: "Error fetching suppliers",
         description: error instanceof Error ? error.message : String(error),
       });
+    }
+  }
+
+  async function searchProducts(query: string) {
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*, suppliers(name)")
+        .ilike("name", `%${query}%`)
+        .limit(10);
+
+      if (error) throw error;
+      setSearchResults(data || []);
+      console.log("Search results:", data);
+    } catch (error) {
+      console.error("Error searching products:", error);
     }
   }
 
@@ -151,6 +203,42 @@ export function ProductForm({
       return null;
     }
   }
+
+  const handleSelectProduct = (selectedProduct: Product) => {
+    setName(selectedProduct.name || "");
+    setBuyingPrice(selectedProduct.buying_price?.toString() || "");
+    setSellingPrice(selectedProduct.selling_price?.toString() || "");
+    setBarcode(selectedProduct.barcode || "");
+    setSupplierId(selectedProduct.supplier_id || "");
+    setShopId(selectedProduct.shop_id || "");
+    setWatt(selectedProduct.watt?.toString() || "");
+    setSize(selectedProduct.size || "");
+    setColor(selectedProduct.color || "");
+    setModel(selectedProduct.model || "");
+
+    // Set advance payment and remaining amount if available
+    if (
+      selectedProduct.advance_payment !== undefined &&
+      selectedProduct.advance_payment !== null
+    ) {
+      setAdvancePayment(selectedProduct.advance_payment.toString());
+    }
+    if (
+      selectedProduct.remaining_amount !== undefined &&
+      selectedProduct.remaining_amount !== null
+    ) {
+      setRemainingAmount(selectedProduct.remaining_amount.toString());
+    }
+
+    // Close the search popover and reset the search query
+    setIsSearchOpen(false);
+    setSearchQuery("");
+
+    toast({
+      title: "Product selected",
+      description: `${selectedProduct.name} has been loaded into the form.`,
+    });
+  };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -254,6 +342,9 @@ export function ProductForm({
         supplier_id: supplierId,
         shop_id: shopId,
         watt: watt ? Number(watt) : null,
+        size: size.trim() || null,
+        color: color.trim() || null,
+        model: model.trim() || null,
         advance_payment: Number(advancePayment),
         remaining_amount: Number(remainingAmount),
         created_at: date
@@ -332,13 +423,70 @@ export function ProductForm({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
         <div className="space-y-2">
           <Label htmlFor="name">Product Name *</Label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Enter product name"
-            required
-          />
+          <div className="relative">
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Enter product name"
+              required
+              className="pr-10"
+            />
+            <Popover open={isSearchOpen} onOpenChange={setIsSearchOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full px-3 py-2 text-gray-400 hover:text-gray-600 bg-transparent"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setIsSearchOpen(true);
+                  }}
+                >
+                  <Search className="h-4 w-4 text-gray-600" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                side="bottom"
+                sideOffset={5}
+                alignOffset={-10}
+                className="w-[300px] p-0"
+              >
+                <Command>
+                  <CommandInput
+                    placeholder="Search products..."
+                    value={searchQuery}
+                    onValueChange={setSearchQuery}
+                  />
+                  <CommandList>
+                    <CommandEmpty>No products found</CommandEmpty>
+                    <CommandGroup heading="Products">
+                      {searchResults.map((product) => (
+                        <CommandItem
+                          key={product.id}
+                          value={product.id}
+                          onSelect={() => handleSelectProduct(product)}
+                        >
+                          <div className="flex flex-col">
+                            <span className="font-medium">{product.name}</span>
+                            <span className="text-xs text-gray-500">
+                              {product.watt && `${product.watt}W • `}
+                              {product.barcode && `${product.barcode}`}
+                            </span>
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+          <p className="text-xs text-gray-500">
+            Click the search icon to find existing products
+          </p>
         </div>
 
         <div className="space-y-2">
@@ -468,7 +616,10 @@ export function ProductForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="watt">Watt</Label>
+          <Label htmlFor="watt" className="flex items-center gap-1">
+            <Ruler className="h-4 w-4" />
+            Watt
+          </Label>
           <Input
             id="watt"
             type="number"
@@ -486,6 +637,45 @@ export function ProductForm({
             value={barcode}
             onChange={(e) => setBarcode(e.target.value)}
             placeholder="Enter barcode"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="size" className="flex items-center gap-1">
+            <Ruler className="h-4 w-4" />
+            Size
+          </Label>
+          <Input
+            id="size"
+            value={size}
+            onChange={(e) => setSize(e.target.value)}
+            placeholder="Enter size (e.g., Small, Medium, Large)"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="color" className="flex items-center gap-1">
+            <Palette className="h-4 w-4" />
+            Color
+          </Label>
+          <Input
+            id="color"
+            value={color}
+            onChange={(e) => setColor(e.target.value)}
+            placeholder="Enter color"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="model" className="flex items-center gap-1">
+            <Smartphone className="h-4 w-4" />
+            Model
+          </Label>
+          <Input
+            id="model"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            placeholder="Enter model number"
           />
         </div>
 

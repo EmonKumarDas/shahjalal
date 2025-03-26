@@ -483,16 +483,19 @@ export type Database = {
           advance_payment: number | null
           barcode: string | null
           buying_price: number
+          color: string | null
           company_id: string | null
           created_at: string | null
           id: string
           images: string[] | null
           invoice_id: string | null
+          model: string | null
           name: string
           quantity: number
           remaining_amount: number | null
           selling_price: number
           shop_id: string | null
+          size: string | null
           supplier_id: string | null
           updated_at: string | null
           watt: number | null
@@ -501,16 +504,19 @@ export type Database = {
           advance_payment?: number | null
           barcode?: string | null
           buying_price: number
+          color?: string | null
           company_id?: string | null
           created_at?: string | null
           id?: string
           images?: string[] | null
           invoice_id?: string | null
+          model?: string | null
           name: string
           quantity?: number
           remaining_amount?: number | null
           selling_price: number
           shop_id?: string | null
+          size?: string | null
           supplier_id?: string | null
           updated_at?: string | null
           watt?: number | null
@@ -519,16 +525,19 @@ export type Database = {
           advance_payment?: number | null
           barcode?: string | null
           buying_price?: number
+          color?: string | null
           company_id?: string | null
           created_at?: string | null
           id?: string
           images?: string[] | null
           invoice_id?: string | null
+          model?: string | null
           name?: string
           quantity?: number
           remaining_amount?: number | null
           selling_price?: number
           shop_id?: string | null
+          size?: string | null
           supplier_id?: string | null
           updated_at?: string | null
           watt?: number | null
