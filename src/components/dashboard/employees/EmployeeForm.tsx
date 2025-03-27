@@ -392,68 +392,7 @@ export function EmployeeForm({
 
         <TabsContent value="basic" className="space-y-6">
           <div className="flex flex-col items-center mb-6">
-            <div className="mb-4">
-              {profileImage ? (
-                <div className="relative">
-                  <Avatar className="h-32 w-32 border-2 border-gray-200">
-                    <AvatarImage src={profileImage} alt={name} />
-                    <AvatarFallback className="text-2xl">
-                      {name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")
-                        .toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <button
-                    type="button"
-                    onClick={handleRemoveImage}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              ) : (
-                <div className="h-32 w-32 rounded-full bg-gray-100 flex items-center justify-center border-2 border-dashed border-gray-300">
-                  <Image className="h-12 w-12 text-gray-400" />
-                </div>
-              )}
-            </div>
-
             <div className="space-y-2 w-full max-w-xs">
-              <Label htmlFor="profile_image" className="block text-center">
-                Profile Image
-              </Label>
-              <div className="relative">
-                <Input
-                  id="profile_image"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() =>
-                    document.getElementById("profile_image")?.click()
-                  }
-                  className="w-full flex items-center justify-center gap-2"
-                  disabled={uploadLoading}
-                >
-                  {uploadLoading ? (
-                    <span className="flex items-center gap-2">
-                      <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
-                      Uploading...
-                    </span>
-                  ) : (
-                    <>
-                      <Upload className="h-4 w-4" />
-                      Upload Image
-                    </>
-                  )}
-                </Button>
-              </div>
               {uploadError && (
                 <p className="text-sm text-red-500 mt-1">{uploadError}</p>
               )}
