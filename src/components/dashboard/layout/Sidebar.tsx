@@ -92,13 +92,13 @@ const salesItems: NavItem[] = [
     color: "text-green-600",
     translationKey: "sellProduct",
   },
-  {
-    title: "Orders",
-    icon: <ClipboardList className="h-5 w-5" />,
-    href: "/dashboard/orders",
-    color: "text-pink-600",
-    translationKey: "orders",
-  },
+  // {
+  //   title: "Orders",
+  //   icon: <ClipboardList className="h-5 w-5" />,
+  //   href: "/dashboard/orders",
+  //   color: "text-pink-600",
+  //   translationKey: "orders",
+  // },
   {
     title: "Invoices",
     icon: <FileText className="h-5 w-5" />,
@@ -113,13 +113,13 @@ const salesItems: NavItem[] = [
     color: "text-red-600",
     translationKey: "returns",
   },
-  {
-    title: "Sales",
-    icon: <TrendingUp className="h-5 w-5" />,
-    href: "/dashboard/sales",
-    color: "text-green-600",
-    translationKey: "sales",
-  },
+  // {
+  //   title: "Sales",
+  //   icon: <TrendingUp className="h-5 w-5" />,
+  //   href: "/dashboard/sales",
+  //   color: "text-green-600",
+  //   translationKey: "sales",
+  // },
   {
     title: "Customers",
     icon: <Users className="h-5 w-5" />,
@@ -130,13 +130,13 @@ const salesItems: NavItem[] = [
 ];
 
 const financeItems: NavItem[] = [
-  {
-    title: "Accounting",
-    icon: <CreditCard className="h-5 w-5" />,
-    href: "/dashboard/accounting",
-    color: "text-red-600",
-    translationKey: "accounting",
-  },
+  // {
+  //   title: "Accounting",
+  //   icon: <CreditCard className="h-5 w-5" />,
+  //   href: "/dashboard/accounting",
+  //   color: "text-red-600",
+  //   translationKey: "accounting",
+  // },
   {
     title: "Other Costs",
     icon: <Box className="h-5 w-5" />,
@@ -151,13 +151,13 @@ const financeItems: NavItem[] = [
     color: "text-purple-600",
     translationKey: "employeeSalary",
   },
-  {
-    title: "Reports",
-    icon: <BarChart3 className="h-5 w-5" />,
-    href: "/dashboard/reports",
-    color: "text-indigo-600",
-    translationKey: "reports",
-  },
+  // {
+  //   title: "Reports",
+  //   icon: <BarChart3 className="h-5 w-5" />,
+  //   href: "/dashboard/reports",
+  //   color: "text-indigo-600",
+  //   translationKey: "reports",
+  // },
 ];
 
 export default function Sidebar({

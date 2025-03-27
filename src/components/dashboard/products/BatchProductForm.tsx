@@ -628,7 +628,6 @@ export function BatchProductForm({
                                   e.preventDefault();
                                   setActiveRowId(row.id);
                                   setIsSearchOpen(true);
-                                  // Trigger search with empty query to show recent products
                                   fetchRecentProducts();
                                 }}
                               >
@@ -678,7 +677,15 @@ export function BatchProductForm({
                                             {product.barcode &&
                                               `${product.barcode} • `}
                                             {product.quantity !== undefined &&
-                                              `Current Stock: ${product.quantity}`}
+                                              `Current Stock: ${product.quantity} • `}
+                                            {product.size &&
+                                              `Size: ${product.size} • `}
+                                            {product.color &&
+                                              `Color: ${product.color} • `}
+                                            {product.model &&
+                                              `Model: ${product.model} • `}
+                                            {product.company_name &&
+                                              `Company: ${product.company_name}`}
                                           </span>
                                         </div>
                                       </CommandItem>
