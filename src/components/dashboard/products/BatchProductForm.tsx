@@ -178,6 +178,23 @@ export function BatchProductForm({
       }),
     );
 
+    // Auto-fill supplier and shop fields if they exist on the selected product
+    if (selectedProduct.supplier_id && !supplierId) {
+      setSupplierId(selectedProduct.supplier_id);
+      toast({
+        title: "Supplier auto-filled",
+        description: `Supplier has been automatically selected based on the product.`,
+      });
+    }
+
+    if (selectedProduct.shop_id && !shopId) {
+      setShopId(selectedProduct.shop_id);
+      toast({
+        title: "Shop auto-filled",
+        description: `Shop has been automatically selected based on the product.`,
+      });
+    }
+
     // Close the search popover and reset the search query
     setIsSearchOpen(false);
     setSearchQuery("");

@@ -24,9 +24,6 @@ export function SupplierForm({
   const [phone, setPhone] = useState(supplier?.phone || "");
   const [address, setAddress] = useState(supplier?.address || "");
   const [notes, setNotes] = useState(supplier?.notes || "");
-  const [created_at] = useState(
-    supplier?.created_at || new Date().toISOString(),
-  );
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -54,6 +51,7 @@ export function SupplierForm({
     try {
       setLoading(true);
 
+      // Create a simpler supplier data object with explicit null handling
       const supplierData = {
         name: name.trim(),
         contact: contact.trim() || null,
@@ -61,37 +59,48 @@ export function SupplierForm({
         phone: phone.trim() || null,
         address: address.trim() || null,
         notes: notes.trim() || null,
-        created_at: created_at,
         updated_at: new Date().toISOString(),
       };
 
-      let result;
-
-      if (supplier) {
-        // Update existing supplier
-        result = await supabase
-          .from("suppliers")
-          .update(supplierData)
-          .eq("id", supplier.id)
-          .select();
-      } else {
-        // Create new supplier
-        result = await supabase
-          .from("suppliers")
-          .insert([supplierData])
-          .select();
+      // Only include created_at for new suppliers
+      if (!supplier) {
+        supplierData.created_at = new Date().toISOString();
       }
 
-      if (result.error) throw result.error;
+      let result;
 
-      toast({
-        title: supplier ? "Supplier updated" : "Supplier created",
-        description: supplier
-          ? "The supplier has been updated successfully"
-          : "The supplier has been created successfully",
-      });
+      try {
+        if (supplier) {
+          // Update existing supplier
+          result = await supabase
+            .from("suppliers")
+            .update(supplierData)
+            .eq("id", supplier.id)
+            .select();
+        } else {
+          // Create new supplier
+          result = await supabase
+            .from("suppliers")
+            .insert([supplierData])
+            .select();
+        }
 
-      onSuccess();
+        if (result.error) throw result.error;
+
+        toast({
+          title: supplier ? "Supplier updated" : "Supplier created",
+          description: supplier
+            ? "The supplier has been updated successfully"
+            : "The supplier has been created successfully",
+        });
+
+        onSuccess();
+      } catch (error) {
+        console.error("Supabase operation error:", error);
+        throw new Error(
+          `Database operation failed: ${error.message || "Unknown error"}`,
+        );
+      }
     } catch (error) {
       console.error("Error saving supplier:", error);
       toast({
