@@ -2,7 +2,7 @@ import { DashboardLayout } from "../dashboard/layout/DashboardLayout";
 import { BatchProductForm } from "../dashboard/products/BatchProductForm";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Package, Clipboard, ShoppingBag } from "lucide-react";
+import { ArrowLeft, Package, Clipboard, Upload } from "lucide-react";
 
 export default function AddProduct() {
   const navigate = useNavigate();
@@ -42,7 +42,8 @@ export default function AddProduct() {
                 <h2 className="text-lg font-semibold">Product Information</h2>
               </div>
               <p className="text-sm text-muted-foreground mt-1">
-                Fill in the details for all products you want to add
+                Fill in the details for all products you want to add or upload
+                an Excel file
               </p>
             </div>
             <div className="p-6">

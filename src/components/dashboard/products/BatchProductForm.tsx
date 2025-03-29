@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../../../supabase/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,15 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import { Supplier, Shop, Product } from "@/types/schema";
-import { Trash2, Plus, Calendar, Search } from "lucide-react";
+import {
+  Trash2,
+  Plus,
+  Calendar,
+  Search,
+  Upload,
+  FileSpreadsheet,
+} from "lucide-react";
+import * as XLSX from "xlsx";
 import {
   Popover,
   PopoverContent,
@@ -77,6 +85,8 @@ export function BatchProductForm({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeRowId, setActiveRowId] = useState<string>("");
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -470,6 +480,120 @@ export function BatchProductForm({
     }
   }
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+        if (jsonData.length === 0) {
+          toast({
+            variant: "destructive",
+            title: "Empty Excel File",
+            description: "The uploaded Excel file doesn't contain any data.",
+          });
+          setIsUploading(false);
+          return;
+        }
+
+        // Map Excel data to product rows
+        const newProductRows = jsonData.map((row: any) => {
+          return {
+            id:
+              Date.now().toString() +
+              Math.random().toString(36).substring(2, 9),
+            name:
+              row.name || row.Name || row.product_name || row.ProductName || "",
+            buyingPrice: (
+              row.buying_price ||
+              row.BuyingPrice ||
+              row.cost ||
+              row.Cost ||
+              0
+            ).toString(),
+            sellingPrice: (
+              row.selling_price ||
+              row.SellingPrice ||
+              row.price ||
+              row.Price ||
+              0
+            ).toString(),
+            quantity: (
+              row.quantity ||
+              row.Quantity ||
+              row.qty ||
+              row.Qty ||
+              0
+            ).toString(),
+            barcode: (
+              row.barcode ||
+              row.Barcode ||
+              row.code ||
+              row.Code ||
+              ""
+            ).toString(),
+            watt: (
+              row.watt ||
+              row.Watt ||
+              row.power ||
+              row.Power ||
+              ""
+            ).toString(),
+            size: (row.size || row.Size || "").toString(),
+            color: (row.color || row.Color || "").toString(),
+            model: (row.model || row.Model || "").toString(),
+            totalPrice: (
+              (row.buying_price ||
+                row.BuyingPrice ||
+                row.cost ||
+                row.Cost ||
+                0) * (row.quantity || row.Quantity || row.qty || row.Qty || 0)
+            ).toFixed(2),
+          };
+        });
+
+        setProductRows(newProductRows);
+        toast({
+          title: "Excel File Processed",
+          description: `Successfully loaded ${newProductRows.length} products from the Excel file.`,
+        });
+      } catch (error) {
+        console.error("Error processing Excel file:", error);
+        toast({
+          variant: "destructive",
+          title: "Error Processing Excel File",
+          description:
+            "There was an error processing the Excel file. Please check the format and try again.",
+        });
+      } finally {
+        setIsUploading(false);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      }
+    };
+
+    reader.onerror = () => {
+      toast({
+        variant: "destructive",
+        title: "Error Reading File",
+        description: "There was an error reading the file. Please try again.",
+      });
+      setIsUploading(false);
+    };
+
+    reader.readAsArrayBuffer(file);
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-6">
@@ -543,6 +667,43 @@ export function BatchProductForm({
           </div>
         </div>
 
+        <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+          <div className="flex items-center gap-2 mb-3">
+            <FileSpreadsheet className="h-5 w-5 text-primary" />
+            <Label className="font-medium">Excel Upload</Label>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <div className="relative">
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept=".xlsx,.xls"
+                onChange={handleFileUpload}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                disabled={isUploading}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="flex items-center gap-2 bg-white hover:bg-primary hover:text-white transition-colors"
+                disabled={isUploading}
+              >
+                <Upload className="h-4 w-4" />
+                {isUploading ? "Processing..." : "Upload Excel File"}
+              </Button>
+            </div>
+            <p className="text-sm text-gray-500">
+              Upload an Excel file with product details to automatically
+              populate the form.
+              <br />
+              <span className="text-xs italic">
+                Supported columns: name, buying_price, selling_price, quantity,
+                barcode, watt, size, color, model
+              </span>
+            </p>
+          </div>
+        </div>
+
         <div className="space-y-3">
           <div className="flex justify-between items-center bg-gray-50 p-4 rounded-lg border border-gray-100">
             <div className="flex items-center gap-2">
@@ -584,9 +745,7 @@ export function BatchProductForm({
                       Total Price
                     </TableHead>
                     <TableHead className="w-[6%] font-semibold">Watt</TableHead>
-                    <TableHead className="w-[10%] font-semibold">
-                      Barcode
-                    </TableHead>
+
                     <TableHead className="w-[8%] font-semibold">Size</TableHead>
                     <TableHead className="w-[8%] font-semibold">
                       Color
@@ -763,19 +922,10 @@ export function BatchProductForm({
                             updateRowField(row.id, "watt", e.target.value)
                           }
                           placeholder="Watt"
-                          className="w-full"
+                          className="w-20"
                         />
                       </TableCell>
-                      <TableCell>
-                        <Input
-                          value={row.barcode}
-                          onChange={(e) =>
-                            updateRowField(row.id, "barcode", e.target.value)
-                          }
-                          placeholder="Barcode"
-                          className="w-full"
-                        />
-                      </TableCell>
+
                       <TableCell>
                         <Input
                           value={row.size}
