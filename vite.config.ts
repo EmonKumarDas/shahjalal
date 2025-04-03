@@ -15,7 +15,7 @@ export default defineConfig({
   base:
     process.env.NODE_ENV === "development"
       ? "/"
-      : process.env.VITE_BASE_PATH || "/",
+      : process.env.VITE_BASE_PATH || "/starter/", // Change this to match your repo name
   optimizeDeps: {
     entries: ["src/main.tsx", "src/tempobook/**/*"],
   },

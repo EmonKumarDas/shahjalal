@@ -1,10 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-
-type Theme = "light" | "dark";
+import React, { createContext, useContext } from "react";
 
 type ThemeContextType = {
-  theme: Theme;
-  toggleTheme: () => void;
+  theme: "light";
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -12,38 +9,11 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  // Check if theme is stored in localStorage, otherwise use system preference or default to light
-  const [theme, setTheme] = useState<Theme>(() => {
-    const savedTheme = localStorage.getItem("theme") as Theme;
-    if (savedTheme) return savedTheme;
-
-    // Check system preference
-    if (
-      window.matchMedia &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches
-    ) {
-      return "dark";
-    }
-
-    return "light";
-  });
-
-  // Apply theme class to document element
-  useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.remove("light", "dark");
-    root.classList.add(theme);
-    localStorage.setItem("theme", theme);
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme((prevTheme) => (prevTheme === "light" ? "dark" : "light"));
-  };
+  // Always use light theme
+  const theme = "light";
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
+    <ThemeContext.Provider value={{ theme }}>{children}</ThemeContext.Provider>
   );
 };
 

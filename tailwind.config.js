@@ -1,6 +1,5 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  darkMode: ["class"],
   content: [
     "./pages/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
@@ -77,12 +76,5 @@ module.exports = {
     },
   },
   plugins: [require("tailwindcss-animate")],
-  // Add dark mode variants
-  variants: {
-    extend: {
-      backgroundColor: ["dark"],
-      textColor: ["dark"],
-      borderColor: ["dark"],
-    },
-  },
+  // Dark mode variants removed
 };

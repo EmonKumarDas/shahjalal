@@ -31,3 +31,6 @@ dist-ssr
 core
 
 .github/
+
+# Local Netlify folder
+.netlify
