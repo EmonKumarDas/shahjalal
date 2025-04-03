@@ -107,9 +107,9 @@ export function ProductForm({
     setRemainingAmount(Math.max(0, selling - advance).toString());
   }, [sellingPrice, advancePayment]);
 
-  // Calculate selling price with markup applied to buying price
+  // If editing a product, we don't need to calculate selling price
   useEffect(() => {
-    if (discount && buyingPrice) {
+    if (!product && discount && buyingPrice) {
       const buying = Number(buyingPrice) || 0;
       const markupValue = Number(discount) || 0;
       if (markupValue > 0) {
@@ -118,7 +118,7 @@ export function ProductForm({
         setSellingPrice(newSellingPrice.toFixed(2));
       }
     }
-  }, [buyingPrice, discount]);
+  }, [buyingPrice, discount, product]);
 
   async function fetchSuppliers() {
     try {
@@ -333,25 +333,37 @@ export function ProductForm({
       // Check for existing product with same name, supplier, and watt (case insensitive)
       const existingProduct = await checkExistingProduct();
 
-      const productData = {
-        name: name.trim(),
-        buying_price: Number(buyingPrice),
-        selling_price: Number(sellingPrice),
-        quantity: Number(quantity),
-        barcode: barcode.trim() || null,
-        supplier_id: supplierId,
-        shop_id: shopId,
-        watt: watt ? Number(watt) : null,
-        size: size.trim() || null,
-        color: color.trim() || null,
-        model: model.trim() || null,
-        advance_payment: Number(advancePayment),
-        remaining_amount: Number(remainingAmount),
-        created_at: date
-          ? new Date(date).toISOString()
-          : new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      const productData = product
+        ? {
+            name: name.trim(),
+            buying_price: Number(buyingPrice),
+            supplier_id: supplierId,
+            shop_id: shopId,
+            watt: watt ? Number(watt) : null,
+            size: size.trim() || null,
+            color: color.trim() || null,
+            model: model.trim() || null,
+            updated_at: new Date().toISOString(),
+          }
+        : {
+            name: name.trim(),
+            buying_price: Number(buyingPrice),
+            selling_price: Number(sellingPrice),
+            quantity: Number(quantity),
+            barcode: barcode.trim() || null,
+            supplier_id: supplierId,
+            shop_id: shopId,
+            watt: watt ? Number(watt) : null,
+            size: size.trim() || null,
+            color: color.trim() || null,
+            model: model.trim() || null,
+            advance_payment: Number(advancePayment),
+            remaining_amount: Number(remainingAmount),
+            created_at: date
+              ? new Date(date).toISOString()
+              : new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
 
       let result;
 
@@ -408,7 +420,10 @@ export function ProductForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-6 max-w-full overflow-x-auto"
+    >
       {isRestocking && (
         <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
           <h3 className="text-blue-800 font-medium flex items-center gap-2">
@@ -420,7 +435,7 @@ export function ProductForm({
           </p>
         </div>
       )}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
         <div className="space-y-2">
           <Label htmlFor="name">Product Name *</Label>
           <div className="relative">
@@ -554,66 +569,35 @@ export function ProductForm({
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="discount" className="flex items-center gap-1">
-            <Tag className="h-4 w-4" />
-            Markup Percentage
-          </Label>
-          <Input
-            id="discount"
-            type="number"
-            step="0.01"
-            min="0"
-            value={discount}
-            onChange={(e) => setDiscount(e.target.value)}
-            placeholder="0"
-          />
-          <p className="text-xs text-gray-500">
-            Markup % to apply on buying price to calculate selling price
-          </p>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="sellingPrice">Selling Price *</Label>
-          <Input
-            id="sellingPrice"
-            type="number"
-            step="0.01"
-            min="0"
-            value={sellingPrice}
-            onChange={(e) => setSellingPrice(e.target.value)}
-            placeholder="0.00"
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label
-            htmlFor="quantity"
-            className={isRestocking ? "text-blue-700 font-medium" : ""}
-          >
-            Quantity *
-          </Label>
-          <Input
-            id="quantity"
-            type="number"
-            min="0"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            placeholder="0"
-            required
-            className={
-              isRestocking
-                ? "border-blue-300 focus:border-blue-500 focus:ring-blue-500"
-                : ""
-            }
-          />
-          {isRestocking && (
-            <p className="text-xs text-blue-600 mt-1">
-              Current stock: {product?.quantity || 0} units
-            </p>
-          )}
-        </div>
+        {!product && (
+          <div className="space-y-2">
+            <Label
+              htmlFor="quantity"
+              className={isRestocking ? "text-blue-700 font-medium" : ""}
+            >
+              Quantity *
+            </Label>
+            <Input
+              id="quantity"
+              type="number"
+              min="0"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              placeholder="0"
+              required
+              className={
+                isRestocking
+                  ? "border-blue-300 focus:border-blue-500 focus:ring-blue-500"
+                  : ""
+              }
+            />
+            {isRestocking && (
+              <p className="text-xs text-blue-600 mt-1">
+                Current stock: {product?.quantity || 0} units
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="watt" className="flex items-center gap-1">
@@ -630,15 +614,17 @@ export function ProductForm({
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="barcode">Barcode</Label>
-          <Input
-            id="barcode"
-            value={barcode}
-            onChange={(e) => setBarcode(e.target.value)}
-            placeholder="Enter barcode"
-          />
-        </div>
+        {!product && (
+          <div className="space-y-2">
+            <Label htmlFor="barcode">Barcode</Label>
+            <Input
+              id="barcode"
+              value={barcode}
+              onChange={(e) => setBarcode(e.target.value)}
+              placeholder="Enter barcode"
+            />
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="size" className="flex items-center gap-1">
@@ -679,33 +665,37 @@ export function ProductForm({
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="advancePayment">Advance Payment</Label>
-          <Input
-            id="advancePayment"
-            type="number"
-            step="0.01"
-            min="0"
-            max={sellingPrice}
-            value={advancePayment}
-            onChange={(e) => setAdvancePayment(e.target.value)}
-            placeholder="0.00"
-          />
-        </div>
+        {!product && (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="advancePayment">Advance Payment</Label>
+              <Input
+                id="advancePayment"
+                type="number"
+                step="0.01"
+                min="0"
+                max={sellingPrice}
+                value={advancePayment}
+                onChange={(e) => setAdvancePayment(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="remainingAmount">Remaining Amount</Label>
-          <Input
-            id="remainingAmount"
-            type="number"
-            value={remainingAmount}
-            readOnly
-            className="bg-gray-50"
-          />
-          <p className="text-xs text-gray-500">
-            Automatically calculated (Selling Price - Advance Payment)
-          </p>
-        </div>
+            <div className="space-y-2">
+              <Label htmlFor="remainingAmount">Remaining Amount</Label>
+              <Input
+                id="remainingAmount"
+                type="number"
+                value={remainingAmount}
+                readOnly
+                className="bg-gray-50"
+              />
+              <p className="text-xs text-gray-500">
+                Automatically calculated (Selling Price - Advance Payment)
+              </p>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="flex flex-col sm:flex-row justify-end gap-2 mt-6">

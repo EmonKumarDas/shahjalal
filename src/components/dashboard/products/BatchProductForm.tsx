@@ -385,7 +385,7 @@ export function BatchProductForm({
 
       // Process each product row
       for (const row of productRows) {
-        // Case insensitive search for product with same name, supplier, and watt
+        // Case insensitive search for product with same name, supplier, and attributes
         const { data: existingProducts, error: searchError } = await supabase
           .from("products")
           .select("*, shops(name)")
@@ -394,12 +394,22 @@ export function BatchProductForm({
 
         if (searchError) throw searchError;
 
-        // Find exact match with case insensitive name and matching watt
+        // Find exact match with case insensitive name, supplier_id, watt, and buying_price
+        // These are the fields in the unique constraint
         const matchingProduct = existingProducts?.find((p) => {
           const productWatt = row.watt ? Number(row.watt) : null;
+          const productBuyingPrice = Number(row.buyingPrice);
+          const productSize = row.size.trim() || null;
+          const productColor = row.color.trim() || null;
+          const productModel = row.model.trim() || null;
+
           return (
             p.name.toLowerCase() === row.name.trim().toLowerCase() &&
-            p.watt === productWatt
+            p.watt === productWatt &&
+            p.buying_price === productBuyingPrice &&
+            p.size === productSize &&
+            p.color === productColor &&
+            p.model === productModel
           );
         });
 
@@ -465,6 +475,7 @@ export function BatchProductForm({
         description: `Successfully processed ${productRows.length} product(s) and generated invoice #${invoiceNumber}`,
       });
 
+      navigate(`/dashboard/invoices/${invoiceId}`);
       navigate(`/dashboard/invoices/${invoiceId}`);
       onSuccess();
     } catch (error) {
@@ -1005,9 +1016,6 @@ export function BatchProductForm({
               className="bg-gray-50 font-medium text-primary"
               readOnly
             />
-            <p className="text-xs text-gray-500">
-              Automatically calculated (buying price × quantity)
-            </p>
           </div>
 
           <div className="space-y-2 bg-white p-4 rounded-lg border border-gray-100">

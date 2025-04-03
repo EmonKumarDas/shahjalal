@@ -1,12 +1,4 @@
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Package, ShoppingCart, Users, Plus } from "lucide-react";
+import { Package, ShoppingCart, Users } from "lucide-react";
 
 type QuickAction = {
   title: string;
@@ -41,34 +33,5 @@ export function QuickActions() {
     },
   ];
 
-  return (
-    <Card className="bg-white">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base font-medium">Quick Actions</CardTitle>
-        <CardDescription>Frequently used actions</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {actions.map((action, index) => (
-            <Button
-              key={index}
-              variant="outline"
-              className="h-auto flex-col items-start gap-1 p-4 text-left"
-              asChild
-            >
-              <a href={action.href}>
-                <div className={`rounded-full p-2 ${action.color}`}>
-                  {action.icon}
-                </div>
-                <div className="font-medium">{action.title}</div>
-                <div className="text-xs text-gray-500">
-                  {action.description}
-                </div>
-              </a>
-            </Button>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
+  return <></>;
 }

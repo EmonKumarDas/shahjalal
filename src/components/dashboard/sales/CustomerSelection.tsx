@@ -94,7 +94,9 @@ export function CustomerSelection({
             placeholder="Enter customer name"
             value={customerName}
             onChange={handleNameChange}
+            required
           />
+
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="icon">

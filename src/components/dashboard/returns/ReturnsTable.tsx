@@ -98,6 +98,14 @@ export function ReturnsTable() {
     return colors[status] || "border-gray-200 bg-gray-50 text-gray-600";
   };
 
+  const getReturnTypeColor = (type) => {
+    const colors = {
+      refund: "border-purple-200 bg-purple-50 text-purple-600",
+      exchange: "border-indigo-200 bg-indigo-50 text-indigo-600",
+    };
+    return colors[type] || "border-gray-200 bg-gray-50 text-gray-600";
+  };
+
   const handleViewDetails = (returnData) => {
     setSelectedReturn(returnData);
     setIsDetailsOpen(true);
@@ -182,6 +190,7 @@ export function ReturnsTable() {
                 <TableHead>Date</TableHead>
                 <TableHead>Items</TableHead>
                 <TableHead>Total Amount</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Reason</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -201,6 +210,16 @@ export function ReturnsTable() {
                   </TableCell>
                   <TableCell>{returnData.return_items?.length || 0}</TableCell>
                   <TableCell>${returnData.total_amount.toFixed(2)}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className={getReturnTypeColor(returnData.return_type)}
+                    >
+                      {returnData.return_type === "refund"
+                        ? "Refund"
+                        : "Exchange"}
+                    </Badge>
+                  </TableCell>
                   <TableCell>{returnData.return_reason}</TableCell>
                   <TableCell>
                     <Badge
@@ -282,6 +301,31 @@ export function ReturnsTable() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <div>
+                  <h3 className="font-medium">Return Type</h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge
+                      variant="outline"
+                      className={getReturnTypeColor(selectedReturn.return_type)}
+                    >
+                      {selectedReturn.return_type === "refund"
+                        ? "Refund"
+                        : "Exchange"}
+                    </Badge>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-medium">Product Condition</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {selectedReturn.condition
+                      ? selectedReturn.condition.charAt(0).toUpperCase() +
+                        selectedReturn.condition.slice(1)
+                      : "Not specified"}
+                  </p>
+                </div>
+              </div>
+
               <div>
                 <h3 className="font-medium mb-2">Returned Items</h3>
                 <div className="rounded-md border">
@@ -325,6 +369,57 @@ export function ReturnsTable() {
                 </div>
               </div>
 
+              {selectedReturn.return_type === "exchange" &&
+                selectedReturn.exchange_product_id && (
+                  <div className="mt-4">
+                    <h3 className="font-medium mb-2">Exchange Details</h3>
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="font-medium">
+                              Exchange Product:
+                            </span>
+                            <span>
+                              {selectedReturn.exchange_product?.name ||
+                                "Product not found"}
+                            </span>
+                          </div>
+                          {selectedReturn.price_difference !== 0 && (
+                            <div className="flex justify-between">
+                              <span className="font-medium">
+                                {selectedReturn.price_difference > 0
+                                  ? "Additional Payment:"
+                                  : "Store Credit:"}
+                              </span>
+                              <span
+                                className={
+                                  selectedReturn.price_difference > 0
+                                    ? "text-red-600"
+                                    : "text-green-600"
+                                }
+                              >
+                                $
+                                {Math.abs(
+                                  selectedReturn.price_difference,
+                                ).toFixed(2)}
+                              </span>
+                            </div>
+                          )}
+                          {selectedReturn.return_fees > 0 && (
+                            <div className="flex justify-between">
+                              <span className="font-medium">Return Fees:</span>
+                              <span className="text-red-600">
+                                ${selectedReturn.return_fees.toFixed(2)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
               <div className="flex justify-between items-center pt-4 border-t">
                 <div>
                   <p className="text-sm text-gray-500">
@@ -336,12 +431,53 @@ export function ReturnsTable() {
                         )
                       : "Unknown date"}
                   </p>
+                  {selectedReturn.admin_notes && (
+                    <div className="mt-2">
+                      <p className="text-sm font-medium">Admin Notes:</p>
+                      <p className="text-sm text-gray-600">
+                        {selectedReturn.admin_notes}
+                      </p>
+                    </div>
+                  )}
                 </div>
                 <div className="text-right">
-                  <p className="font-medium">Total Refund Amount</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    ${selectedReturn.refund_amount.toFixed(2)}
-                  </p>
+                  {selectedReturn.return_type === "refund" ? (
+                    <>
+                      <p className="font-medium">Total Refund Amount</p>
+                      <p className="text-2xl font-bold text-green-600">
+                        ${selectedReturn.refund_amount.toFixed(2)}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Via{" "}
+                        {selectedReturn.payment_method === "original"
+                          ? "Original Payment Method"
+                          : selectedReturn.payment_method === "store_credit"
+                            ? "Store Credit"
+                            : "Cash"}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-medium">Exchange Transaction</p>
+                      <p className="text-xl font-bold">
+                        {selectedReturn.price_difference > 0 ? (
+                          <span className="text-red-600">
+                            Additional Payment: $
+                            {selectedReturn.price_difference.toFixed(2)}
+                          </span>
+                        ) : selectedReturn.price_difference < 0 ? (
+                          <span className="text-green-600">
+                            Store Credit: $
+                            {Math.abs(selectedReturn.price_difference).toFixed(
+                              2,
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-blue-600">Even Exchange</span>
+                        )}
+                      </p>
+                    </>
+                  )}
                   {selectedReturn.status === "approved" && (
                     <Button
                       className="mt-2 bg-green-600 hover:bg-green-700 text-white"
@@ -349,7 +485,10 @@ export function ReturnsTable() {
                         handleUpdateStatus(selectedReturn.id, "completed")
                       }
                     >
-                      Process Refund & Complete Return
+                      {selectedReturn.return_type === "refund"
+                        ? "Process Refund"
+                        : "Complete Exchange"}{" "}
+                      & Finalize
                     </Button>
                   )}
                 </div>

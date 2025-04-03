@@ -187,7 +187,6 @@ export function SupplierDetails({
           .from("invoices")
           .select("*, shops(id, name)")
           .eq("supplier_id", supplier.id)
-          .in("status", ["partially_paid", "unpaid"])
           .order("created_at", { ascending: false });
 
         if (invoicesError) {
@@ -371,7 +370,7 @@ export function SupplierDetails({
           </TabsTrigger>
           <TabsTrigger value="invoices" className="flex items-center gap-1">
             <FileText className="h-4 w-4" />
-            Pending Invoices
+            All Invoices
           </TabsTrigger>
         </TabsList>
 
@@ -596,7 +595,7 @@ export function SupplierDetails({
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-orange-600" />
-                Pending Invoices
+                All Invoices
               </CardTitle>
             </CardHeader>
             <CardContent>

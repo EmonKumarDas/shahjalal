@@ -47,6 +47,10 @@ export function InvoicesTable() {
   const [statusFilter, setStatusFilter] = useState<
     "all" | "paid" | "partially_paid" | "unpaid" | "pending"
   >("all");
+  const [supplierFilter, setSupplierFilter] = useState<string>("all");
+  const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>(
+    [],
+  );
   const location = useLocation();
 
   useEffect(() => {
@@ -54,6 +58,7 @@ export function InvoicesTable() {
     const urlParams = new URLSearchParams(location.search);
     const filterParam = urlParams.get("filter");
     const statusParam = urlParams.get("status");
+    const supplierParam = urlParams.get("supplier");
 
     if (filterParam) {
       setInvoiceTypeFilter(filterParam as "all" | "sales" | "product_addition");
@@ -66,6 +71,11 @@ export function InvoicesTable() {
       }
     }
 
+    if (supplierParam) {
+      setSupplierFilter(supplierParam);
+    }
+
+    fetchSuppliers();
     fetchInvoices();
 
     const subscription = supabase
@@ -83,6 +93,25 @@ export function InvoicesTable() {
       supabase.removeChannel(subscription);
     };
   }, [location.search]);
+
+  async function fetchSuppliers() {
+    try {
+      const { data, error } = await supabase
+        .from("suppliers")
+        .select("id, name")
+        .order("name");
+
+      if (error) throw error;
+      setSuppliers(data || []);
+    } catch (error) {
+      console.error("Error fetching suppliers:", error);
+      toast({
+        variant: "destructive",
+        title: "Error fetching suppliers",
+        description: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
 
   async function fetchInvoices() {
     try {
@@ -103,6 +132,11 @@ export function InvoicesTable() {
         query = query.in("status", ["partially_paid", "unpaid"]);
       } else if (statusFilter !== "all") {
         query = query.eq("status", statusFilter);
+      }
+
+      // Apply supplier filter if not 'all'
+      if (supplierFilter !== "all") {
+        query = query.eq("supplier_id", supplierFilter);
       }
 
       const { data: invoicesData, error: invoicesError } = await query;
@@ -268,6 +302,19 @@ export function InvoicesTable() {
               <SelectItem value="partially_paid">Partially Paid</SelectItem>
               <SelectItem value="unpaid">Unpaid</SelectItem>
               <SelectItem value="pending">Pending Payment</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={supplierFilter} onValueChange={setSupplierFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by supplier" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Suppliers</SelectItem>
+              {suppliers.map((supplier) => (
+                <SelectItem key={supplier.id} value={supplier.id}>
+                  {supplier.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

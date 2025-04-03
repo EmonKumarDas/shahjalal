@@ -567,9 +567,6 @@ export function EmployeesTable() {
   return (
     <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">
-          Employee Management System
-        </h1>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button className="flex items-center gap-1">
@@ -600,10 +597,7 @@ export function EmployeesTable() {
             <Users className="h-4 w-4" />
             Employees
           </TabsTrigger>
-          <TabsTrigger value="payroll" className="flex items-center gap-2">
-            <DollarSign className="h-4 w-4" />
-            Payroll Management
-          </TabsTrigger>
+
           <TabsTrigger value="reports" className="flex items-center gap-2">
             <BarChart className="h-4 w-4" />
             Reports & Analytics

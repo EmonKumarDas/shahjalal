@@ -75,9 +75,11 @@ const defaultProjects: ProjectCardProps[] = [
 
 const ProjectCard = ({ title, progress, team, dueDate }: ProjectCardProps) => {
   return (
-    <Card className="bg-white/90 backdrop-blur-sm border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
+    <Card className="bg-white/90 backdrop-blur-sm border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden w-full">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-base font-medium text-gray-900">{title}</CardTitle>
+        <CardTitle className="text-base font-medium text-gray-900">
+          {title}
+        </CardTitle>
         <div className="h-8 w-8 rounded-full bg-gray-50 flex items-center justify-center">
           <BarChart2 className="h-4 w-4 text-gray-500" />
         </div>
@@ -89,10 +91,15 @@ const ProjectCard = ({ title, progress, team, dueDate }: ProjectCardProps) => {
               <span className="text-gray-500">Progress</span>
               <span className="text-gray-900">{progress}%</span>
             </div>
-            <Progress value={progress} className="h-2 bg-gray-100 rounded-full" 
-              style={{
-                backgroundColor: 'rgb(243, 244, 246)',
-              } as React.CSSProperties} />
+            <Progress
+              value={progress}
+              className="h-2 bg-gray-100 rounded-full"
+              style={
+                {
+                  backgroundColor: "rgb(243, 244, 246)",
+                } as React.CSSProperties
+              }
+            />
           </div>
           <div className="flex justify-between text-sm">
             <div className="flex items-center gap-2 text-gray-500">
@@ -101,9 +108,14 @@ const ProjectCard = ({ title, progress, team, dueDate }: ProjectCardProps) => {
             </div>
             <div className="flex -space-x-2">
               {team.map((member, i) => (
-                <Avatar key={i} className="h-7 w-7 border-2 border-white shadow-sm">
+                <Avatar
+                  key={i}
+                  className="h-7 w-7 border-2 border-white shadow-sm"
+                >
                   <AvatarImage src={member.avatar} alt={member.name} />
-                  <AvatarFallback className="bg-blue-100 text-blue-800 font-medium">{member.name[0]}</AvatarFallback>
+                  <AvatarFallback className="bg-blue-100 text-blue-800 font-medium">
+                    {member.name[0]}
+                  </AvatarFallback>
                 </Avatar>
               ))}
             </div>
@@ -114,9 +126,12 @@ const ProjectCard = ({ title, progress, team, dueDate }: ProjectCardProps) => {
   );
 };
 
-const DashboardGrid = ({ projects = defaultProjects, isLoading = false }: DashboardGridProps) => {
+const DashboardGrid = ({
+  projects = defaultProjects,
+  isLoading = false,
+}: DashboardGridProps) => {
   const [loading, setLoading] = useState(isLoading);
-  
+
   // Simulate loading for demo purposes
   useEffect(() => {
     if (isLoading) {
@@ -129,10 +144,13 @@ const DashboardGrid = ({ projects = defaultProjects, isLoading = false }: Dashbo
 
   if (loading) {
     return (
-      <div className="p-6 h-full">
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="p-4 sm:p-6 h-full">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {[...Array(6)].map((_, index) => (
-            <Card key={index} className="bg-white/90 backdrop-blur-sm border border-gray-100 rounded-2xl shadow-sm h-[220px] flex items-center justify-center">
+            <Card
+              key={index}
+              className="bg-white/90 backdrop-blur-sm border border-gray-100 rounded-2xl shadow-sm h-[220px] flex items-center justify-center w-full"
+            >
               <div className="flex flex-col items-center justify-center p-6">
                 <div className="relative">
                   <div className="h-12 w-12 rounded-full border-4 border-gray-100 border-t-blue-500 animate-spin" />
@@ -140,7 +158,9 @@ const DashboardGrid = ({ projects = defaultProjects, isLoading = false }: Dashbo
                     <div className="h-4 w-4 rounded-full bg-blue-500/20 animate-pulse" />
                   </div>
                 </div>
-                <p className="mt-4 text-sm font-medium text-gray-500">Loading project data...</p>
+                <p className="mt-4 text-sm font-medium text-gray-500">
+                  Loading project data...
+                </p>
               </div>
             </Card>
           ))}
@@ -148,12 +168,12 @@ const DashboardGrid = ({ projects = defaultProjects, isLoading = false }: Dashbo
       </div>
     );
   }
-  
+
   return (
-    <div className="p-6 h-full">
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+    <div className="p-4 sm:p-6 h-full">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {/* Summary Cards */}
-        <Card className="bg-white/90 backdrop-blur-sm border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+        <Card className="bg-white/90 backdrop-blur-sm border border-gray-100 rounded-2xl shadow-sm overflow-hidden w-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-base font-medium text-gray-900">
               Total Projects
@@ -163,15 +183,19 @@ const DashboardGrid = ({ projects = defaultProjects, isLoading = false }: Dashbo
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-semibold text-gray-900">{projects.length}</div>
+            <div className="text-3xl font-semibold text-gray-900">
+              {projects.length}
+            </div>
             <p className="text-sm text-gray-500 mt-1">
               Active projects this month
             </p>
           </CardContent>
         </Card>
-        <Card className="bg-white/90 backdrop-blur-sm border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+        <Card className="bg-white/90 backdrop-blur-sm border border-gray-100 rounded-2xl shadow-sm overflow-hidden w-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base font-medium text-gray-900">Team Members</CardTitle>
+            <CardTitle className="text-base font-medium text-gray-900">
+              Team Members
+            </CardTitle>
             <div className="h-8 w-8 rounded-full bg-purple-50 flex items-center justify-center">
               <Users className="h-4 w-4 text-purple-500" />
             </div>
@@ -181,7 +205,7 @@ const DashboardGrid = ({ projects = defaultProjects, isLoading = false }: Dashbo
             <p className="text-sm text-gray-500 mt-1">Active contributors</p>
           </CardContent>
         </Card>
-        <Card className="bg-white/90 backdrop-blur-sm border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+        <Card className="bg-white/90 backdrop-blur-sm border border-gray-100 rounded-2xl shadow-sm overflow-hidden w-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-base font-medium text-gray-900">
               Upcoming Deadlines

@@ -62,6 +62,10 @@ export function ProductsTable() {
   const [supplierFilter, setSupplierFilter] = useState<string>("all");
   const [wattFilter, setWattFilter] = useState<string>("");
   const [shopFilter, setShopFilter] = useState<string>("all");
+  const [buyingPriceFilter, setBuyingPriceFilter] = useState<string>("");
+  const [sizeFilter, setSizeFilter] = useState<string>("");
+  const [colorFilter, setColorFilter] = useState<string>("");
+  const [modelFilter, setModelFilter] = useState<string>("");
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [shops, setShops] = useState<any[]>([]);
   const navigate = useNavigate();
@@ -261,17 +265,54 @@ export function ProductsTable() {
 
     const matchesShop = shopFilter === "all" || product.shop_id === shopFilter;
 
+    const matchesBuyingPrice =
+      !buyingPriceFilter ||
+      (product.buying_price !== null &&
+        product.buying_price !== undefined &&
+        product.buying_price.toString().includes(buyingPriceFilter));
+
+    const matchesSize =
+      !sizeFilter ||
+      (product.size !== null &&
+        product.size !== undefined &&
+        product.size.toLowerCase().includes(sizeFilter.toLowerCase()));
+
+    const matchesColor =
+      !colorFilter ||
+      (product.color !== null &&
+        product.color !== undefined &&
+        product.color.toLowerCase().includes(colorFilter.toLowerCase()));
+
+    const matchesModel =
+      !modelFilter ||
+      (product.model !== null &&
+        product.model !== undefined &&
+        product.model.toLowerCase().includes(modelFilter.toLowerCase()));
+
     if (showLowStockOnly) {
       return (
         matchesSearch &&
         matchesSupplier &&
         matchesWatt &&
         matchesShop &&
+        matchesBuyingPrice &&
+        matchesSize &&
+        matchesColor &&
+        matchesModel &&
         Number(product.quantity) <= 5
       );
     }
 
-    return matchesSearch && matchesSupplier && matchesWatt && matchesShop;
+    return (
+      matchesSearch &&
+      matchesSupplier &&
+      matchesWatt &&
+      matchesShop &&
+      matchesBuyingPrice &&
+      matchesSize &&
+      matchesColor &&
+      matchesModel
+    );
   });
 
   return (
@@ -311,7 +352,7 @@ export function ProductsTable() {
       {showFilters && (
         <div className="bg-gray-50 p-4 rounded-lg border mb-4">
           <h3 className="text-sm font-medium mb-3">Filter Products</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
             <div>
               <Label htmlFor="supplierFilter" className="mb-1 block">
                 Supplier
@@ -340,6 +381,54 @@ export function ProductsTable() {
                 placeholder="Filter by watt"
                 value={wattFilter}
                 onChange={(e) => setWattFilter(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="buyingPriceFilter" className="mb-1 block">
+                Buying Price
+              </Label>
+              <Input
+                id="buyingPriceFilter"
+                placeholder="Filter by buying price"
+                value={buyingPriceFilter}
+                onChange={(e) => setBuyingPriceFilter(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="sizeFilter" className="mb-1 block">
+                Size
+              </Label>
+              <Input
+                id="sizeFilter"
+                placeholder="Filter by size"
+                value={sizeFilter}
+                onChange={(e) => setSizeFilter(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="colorFilter" className="mb-1 block">
+                Color
+              </Label>
+              <Input
+                id="colorFilter"
+                placeholder="Filter by color"
+                value={colorFilter}
+                onChange={(e) => setColorFilter(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="modelFilter" className="mb-1 block">
+                Model
+              </Label>
+              <Input
+                id="modelFilter"
+                placeholder="Filter by model"
+                value={modelFilter}
+                onChange={(e) => setModelFilter(e.target.value)}
               />
             </div>
 
@@ -443,7 +532,18 @@ export function ProductsTable() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          onClick={() =>
+                            navigate(`/dashboard/products/${product.id}`)
+                          }
+                          title="View Product Details"
+                        >
+                          <Search className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => handleEditClick(product)}
+                          title="Edit Product"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -451,6 +551,7 @@ export function ProductsTable() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDeleteClick(product)}
+                          title="Delete Product"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

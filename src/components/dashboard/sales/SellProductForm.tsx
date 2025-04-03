@@ -231,6 +231,23 @@ export function SellProductForm() {
     setCartItems(updatedItems);
   };
 
+  const handlePriceChange = (itemId: string, newPrice: number) => {
+    if (newPrice <= 0) return;
+
+    const updatedItems = cartItems.map((item) => {
+      if (item.id === itemId) {
+        return {
+          ...item,
+          selling_price: newPrice,
+          subtotal: newPrice * item.quantity,
+        };
+      }
+      return item;
+    });
+
+    setCartItems(updatedItems);
+  };
+
   const handleCustomerSelected = (name: string, phone: string) => {
     setCustomerName(name);
     setCustomerPhone(phone);
@@ -345,10 +362,12 @@ export function SellProductForm() {
       if (itemsError) throw itemsError;
 
       for (const item of cartItems) {
+        // Update product quantity and potentially the selling price
         const { error: updateError } = await supabase
           .from("products")
           .update({
             quantity: item.available_quantity - item.quantity,
+            selling_price: item.selling_price, // Update the product's selling price
             updated_at: new Date().toISOString(),
           })
           .eq("id", item.product_id);
@@ -527,7 +546,18 @@ export function SellProductForm() {
                                 </TableCell>
                                 <TableCell>{item.supplier_name}</TableCell>
                                 <TableCell>
-                                  ${item.selling_price.toFixed(2)}
+                                  <Input
+                                    type="number"
+                                    min="0.01"
+                                    step="0.01"
+                                    value={item.selling_price}
+                                    onChange={(e) => {
+                                      const newPrice =
+                                        parseFloat(e.target.value) || 0;
+                                      handlePriceChange(item.id, newPrice);
+                                    }}
+                                    className="w-24 text-right"
+                                  />
                                 </TableCell>
                                 <TableCell>
                                   <div className="flex items-center space-x-2">

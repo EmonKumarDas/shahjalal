@@ -5,6 +5,7 @@ import LoginForm from "./components/auth/LoginForm";
 import Dashboard from "./components/pages/dashboard";
 import Products from "./components/pages/products";
 import AddProduct from "./components/pages/add-product";
+import ProductDetails from "./components/pages/product-details";
 import Orders from "./components/pages/orders";
 import Suppliers from "./components/pages/suppliers";
 import Shops from "./components/pages/shops";
@@ -84,6 +85,14 @@ function AppRoutes() {
           element={
             <PrivateRoute>
               <AddProduct />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/dashboard/products/:id"
+          element={
+            <PrivateRoute>
+              <ProductDetails />
             </PrivateRoute>
           }
         />

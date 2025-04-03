@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, ArrowUpDown } from "lucide-react";
+import { Search, Plus, ArrowUpDown, Filter, X } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { Product } from "@/types/schema";
 import {
@@ -14,6 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface ProductSearchProps {
   onAddToCart: (product: Product) => void;
@@ -40,22 +46,71 @@ export function ProductSearch({ onAddToCart, shopId }: ProductSearchProps) {
   const [productSuppliers, setProductSuppliers] = useState<
     Record<string, string>
   >({});
+  const [showFilters, setShowFilters] = useState(false);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [shops, setShops] = useState<any[]>([]);
+
+  // Filter states
+  const [supplierFilter, setSupplierFilter] = useState<string>("all");
+  const [shopFilter, setShopFilter] = useState<string>(shopId || "all");
+  const [wattFilter, setWattFilter] = useState<string>("");
+  const [sizeFilter, setSizeFilter] = useState<string>("");
+  const [colorFilter, setColorFilter] = useState<string>("");
+  const [modelFilter, setModelFilter] = useState<string>("");
 
   useEffect(() => {
     if (shopId) {
       fetchProducts();
+      fetchSuppliers();
+      fetchShops();
     }
   }, [shopId, sortBy]);
+
+  async function fetchSuppliers() {
+    try {
+      const { data, error } = await supabase
+        .from("suppliers")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+      setSuppliers(data || []);
+    } catch (error) {
+      console.error("Error fetching suppliers:", error);
+      toast({
+        variant: "destructive",
+        title: "Error fetching suppliers",
+        description: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  async function fetchShops() {
+    try {
+      const { data, error } = await supabase
+        .from("shops")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+      setShops(data || []);
+    } catch (error) {
+      console.error("Error fetching shops:", error);
+      toast({
+        variant: "destructive",
+        title: "Error fetching shops",
+        description: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
 
   async function fetchProducts() {
     try {
       setLoading(true);
 
-      // Get the sort option details
       const sortOption =
         sortOptions.find((option) => option.field === sortBy) || sortOptions[0];
 
-      // Fetch products with sorting
       const { data, error } = await supabase
         .from("products")
         .select("*")
@@ -64,7 +119,6 @@ export function ProductSearch({ onAddToCart, shopId }: ProductSearchProps) {
 
       if (error) throw error;
 
-      // Fetch supplier information for all products
       const supplierIds =
         data?.filter((p) => p.supplier_id).map((p) => p.supplier_id) || [];
       const uniqueSupplierIds = [...new Set(supplierIds)];
@@ -101,11 +155,34 @@ export function ProductSearch({ onAddToCart, shopId }: ProductSearchProps) {
     try {
       setLoading(true);
 
-      // Get the sort option details
       const sortOption =
         sortOptions.find((option) => option.field === sortBy) || sortOptions[0];
 
-      let query = supabase.from("products").select("*").eq("shop_id", shopId);
+      let query = supabase.from("products").select("*");
+
+      if (shopFilter !== "all") {
+        query = query.eq("shop_id", shopFilter);
+      }
+
+      if (supplierFilter !== "all") {
+        query = query.eq("supplier_id", supplierFilter);
+      }
+
+      if (wattFilter) {
+        query = query.ilike("watt::text", `%${wattFilter}%`);
+      }
+
+      if (sizeFilter) {
+        query = query.ilike("size", `%${sizeFilter}%`);
+      }
+
+      if (colorFilter) {
+        query = query.ilike("color", `%${colorFilter}%`);
+      }
+
+      if (modelFilter) {
+        query = query.ilike("model", `%${modelFilter}%`);
+      }
 
       if (searchQuery) {
         query = query.or(
@@ -119,7 +196,6 @@ export function ProductSearch({ onAddToCart, shopId }: ProductSearchProps) {
 
       if (error) throw error;
 
-      // Fetch supplier information for all products
       const supplierIds =
         data?.filter((p) => p.supplier_id).map((p) => p.supplier_id) || [];
       const uniqueSupplierIds = [...new Set(supplierIds)];
@@ -198,9 +274,237 @@ export function ProductSearch({ onAddToCart, shopId }: ProductSearchProps) {
               ))}
             </SelectContent>
           </Select>
+          <Popover open={showFilters} onOpenChange={setShowFilters}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="gap-1">
+                <Filter className="h-4 w-4" />
+                Filters
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-4" align="end">
+              <div className="grid gap-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium">Filter Products</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Narrow down products by specific criteria
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="supplierFilter">Supplier</Label>
+                  <Select
+                    value={supplierFilter}
+                    onValueChange={setSupplierFilter}
+                  >
+                    <SelectTrigger id="supplierFilter">
+                      <SelectValue placeholder="All Suppliers" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Suppliers</SelectItem>
+                      {suppliers.map((supplier) => (
+                        <SelectItem key={supplier.id} value={supplier.id}>
+                          {supplier.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="shopFilter">Shop</Label>
+                  <Select value={shopFilter} onValueChange={setShopFilter}>
+                    <SelectTrigger id="shopFilter">
+                      <SelectValue placeholder="All Shops" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Shops</SelectItem>
+                      {shops.map((shop) => (
+                        <SelectItem key={shop.id} value={shop.id}>
+                          {shop.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="wattFilter">Watt</Label>
+                  <Input
+                    id="wattFilter"
+                    placeholder="Filter by watt"
+                    value={wattFilter}
+                    onChange={(e) => setWattFilter(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="sizeFilter">Size</Label>
+                  <Input
+                    id="sizeFilter"
+                    placeholder="Filter by size"
+                    value={sizeFilter}
+                    onChange={(e) => setSizeFilter(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="colorFilter">Color</Label>
+                  <Input
+                    id="colorFilter"
+                    placeholder="Filter by color"
+                    value={colorFilter}
+                    onChange={(e) => setColorFilter(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="modelFilter">Model</Label>
+                  <Input
+                    id="modelFilter"
+                    placeholder="Filter by model"
+                    value={modelFilter}
+                    onChange={(e) => setModelFilter(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex justify-between pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSupplierFilter("all");
+                      setShopFilter(shopId || "all");
+                      setWattFilter("");
+                      setSizeFilter("");
+                      setColorFilter("");
+                      setModelFilter("");
+                    }}
+                  >
+                    <X className="mr-2 h-4 w-4" />
+                    Reset
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      handleSearch();
+                      setShowFilters(false);
+                    }}
+                  >
+                    Apply Filters
+                  </Button>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
           <Button onClick={handleSearch}>Search</Button>
         </div>
       </div>
+
+      {(supplierFilter !== "all" ||
+        shopFilter !== "all" ||
+        wattFilter ||
+        sizeFilter ||
+        colorFilter ||
+        modelFilter) && (
+        <div className="flex flex-wrap gap-2 mt-2">
+          <p className="text-sm text-gray-500 mr-2 mt-1">Active filters:</p>
+          {supplierFilter !== "all" && (
+            <Badge variant="outline" className="flex items-center gap-1">
+              Supplier:{" "}
+              {suppliers.find((s) => s.id === supplierFilter)?.name || ""}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-4 w-4 p-0 ml-1"
+                onClick={() => setSupplierFilter("all")}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </Badge>
+          )}
+          {shopFilter !== "all" && shopFilter !== shopId && (
+            <Badge variant="outline" className="flex items-center gap-1">
+              Shop: {shops.find((s) => s.id === shopFilter)?.name || ""}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-4 w-4 p-0 ml-1"
+                onClick={() => setShopFilter(shopId || "all")}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </Badge>
+          )}
+          {wattFilter && (
+            <Badge variant="outline" className="flex items-center gap-1">
+              Watt: {wattFilter}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-4 w-4 p-0 ml-1"
+                onClick={() => setWattFilter("")}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </Badge>
+          )}
+          {sizeFilter && (
+            <Badge variant="outline" className="flex items-center gap-1">
+              Size: {sizeFilter}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-4 w-4 p-0 ml-1"
+                onClick={() => setSizeFilter("")}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </Badge>
+          )}
+          {colorFilter && (
+            <Badge variant="outline" className="flex items-center gap-1">
+              Color: {colorFilter}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-4 w-4 p-0 ml-1"
+                onClick={() => setColorFilter("")}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </Badge>
+          )}
+          {modelFilter && (
+            <Badge variant="outline" className="flex items-center gap-1">
+              Model: {modelFilter}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-4 w-4 p-0 ml-1"
+                onClick={() => setModelFilter("")}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </Badge>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 text-xs"
+            onClick={() => {
+              setSupplierFilter("all");
+              setShopFilter(shopId || "all");
+              setWattFilter("");
+              setSizeFilter("");
+              setColorFilter("");
+              setModelFilter("");
+              handleSearch();
+            }}
+          >
+            Clear All
+          </Button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center items-center h-64">
@@ -217,47 +521,48 @@ export function ProductSearch({ onAddToCart, shopId }: ProductSearchProps) {
             return (
               <Card key={product.id} className="overflow-hidden">
                 <CardContent className="p-4">
-                  <div className="flex justify-between items-start">
-                    <div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-start">
                       <h3 className="font-medium">{product.name}</h3>
-                      <p className="text-xs text-gray-500">
+                      <Badge
+                        variant="outline"
+                        className={getStatusColor(status)}
+                      >
+                        {label}
+                      </Badge>
+                    </div>
+
+                    <div className="text-sm text-gray-500 space-y-1">
+                      <p>
                         Supplier:{" "}
                         {productSuppliers[product.supplier_id] || "Unknown"}
                       </p>
-                      {product.barcode && (
-                        <p className="text-xs text-gray-500">
-                          Barcode: {product.barcode}
-                        </p>
-                      )}
-                      {product.watt && (
-                        <p className="text-xs text-gray-500">
-                          Wattage: {product.watt}W
-                        </p>
-                      )}
+                      {product.barcode && <p>Barcode: {product.barcode}</p>}
+                      {product.watt && <p>Wattage: {product.watt}W</p>}
+                      {product.size && <p>Size: {product.size}</p>}
+                      {product.color && <p>Color: {product.color}</p>}
+                      {product.model && <p>Model: {product.model}</p>}
                     </div>
-                    <Badge variant="outline" className={getStatusColor(status)}>
-                      {label}
-                    </Badge>
-                  </div>
 
-                  <div className="mt-2 flex justify-between items-center">
-                    <div>
-                      <p className="text-lg font-bold">
-                        ${product.selling_price.toFixed(2)}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Available: {product.quantity}
-                      </p>
+                    <div className="flex justify-between items-center pt-2 border-t">
+                      <div>
+                        <p className="text-lg font-bold">
+                          ${product.selling_price.toFixed(2)}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Available: {product.quantity}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => onAddToCart(product)}
+                        disabled={product.quantity <= 0}
+                        className="flex items-center gap-1"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Add
+                      </Button>
                     </div>
-                    <Button
-                      size="sm"
-                      onClick={() => onAddToCart(product)}
-                      disabled={product.quantity <= 0}
-                      className="flex items-center gap-1"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      Add
-                    </Button>
                   </div>
                 </CardContent>
               </Card>

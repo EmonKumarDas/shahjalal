@@ -515,16 +515,16 @@ export function RevenueStats() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-2">
         <h2 className="text-lg font-medium">Financial Overview</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-2 w-full sm:w-auto">
           <Select
             value={timeFilter}
             onValueChange={(value: "daily" | "monthly" | "yearly" | "custom") =>
               setTimeFilter(value)
             }
           >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Select time period" />
             </SelectTrigger>
             <SelectContent>
@@ -535,8 +535,8 @@ export function RevenueStats() {
             </SelectContent>
           </Select>
           {timeFilter === "custom" && (
-            <div className="flex gap-2">
-              <div>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-2 w-full sm:w-auto">
+              <div className="w-full sm:w-auto">
                 <Label htmlFor="startDate">Start Date</Label>
                 <Input
                   id="startDate"
@@ -550,7 +550,7 @@ export function RevenueStats() {
                   }
                 />
               </div>
-              <div>
+              <div className="w-full sm:w-auto">
                 <Label htmlFor="endDate">End Date</Label>
                 <Input
                   id="endDate"
@@ -568,7 +568,7 @@ export function RevenueStats() {
           )}
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
         {stats.map((stat, index) => (
           <Stat
             key={index}
@@ -583,34 +583,36 @@ export function RevenueStats() {
       </div>
 
       {/* Bar Chart for Income, Expenses, Net Profit */}
-      <div className="mt-6 p-4 bg-white rounded-lg shadow">
-        <h3 className="text-lg font-medium mb-4">Financial Metrics</h3>
-        <div className="h-64 flex items-end justify-around">
+      <div className="mt-6 p-3 sm:p-4 bg-white rounded-lg shadow">
+        <h3 className="text-lg font-medium mb-3 sm:mb-4">Financial Metrics</h3>
+        <div className="h-48 sm:h-64 flex items-end justify-around">
           {/* Income Bar */}
           <div className="flex flex-col items-center">
             <div
-              className="w-24 bg-green-500 rounded-t-md transition-all duration-500"
+              className="w-16 sm:w-24 bg-green-500 rounded-t-md transition-all duration-500"
               style={{
-                height: `${(dailyIncome / Math.max(dailyIncome, totalExpenses, Math.abs(netEarnings))) * 200 || 0}px`,
+                height: `${(dailyIncome / Math.max(dailyIncome, totalExpenses, Math.abs(netEarnings))) * 180 || 0}px`,
               }}
             ></div>
             <div className="mt-2 text-center">
-              <p className="font-medium">Income</p>
-              <p className="text-sm text-gray-500">${dailyIncome.toFixed(2)}</p>
+              <p className="text-sm sm:text-base font-medium">Income</p>
+              <p className="text-xs sm:text-sm text-gray-500">
+                ${dailyIncome.toFixed(2)}
+              </p>
             </div>
           </div>
 
           {/* Expenses Bar */}
           <div className="flex flex-col items-center">
             <div
-              className="w-24 bg-red-500 rounded-t-md transition-all duration-500"
+              className="w-16 sm:w-24 bg-red-500 rounded-t-md transition-all duration-500"
               style={{
-                height: `${(totalExpenses / Math.max(dailyIncome, totalExpenses, Math.abs(netEarnings))) * 200 || 0}px`,
+                height: `${(totalExpenses / Math.max(dailyIncome, totalExpenses, Math.abs(netEarnings))) * 180 || 0}px`,
               }}
             ></div>
             <div className="mt-2 text-center">
-              <p className="font-medium">Expenses</p>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm sm:text-base font-medium">Expenses</p>
+              <p className="text-xs sm:text-sm text-gray-500">
                 ${totalExpenses.toFixed(2)}
               </p>
             </div>
@@ -619,15 +621,15 @@ export function RevenueStats() {
           {/* Net Profit Bar */}
           <div className="flex flex-col items-center">
             <div
-              className={`w-24 ${netEarnings >= 0 ? "bg-blue-500" : "bg-orange-500"} rounded-t-md transition-all duration-500`}
+              className={`w-16 sm:w-24 ${netEarnings >= 0 ? "bg-blue-500" : "bg-orange-500"} rounded-t-md transition-all duration-500`}
               style={{
-                height: `${(Math.abs(netEarnings) / Math.max(dailyIncome, totalExpenses, Math.abs(netEarnings))) * 200 || 0}px`,
+                height: `${(Math.abs(netEarnings) / Math.max(dailyIncome, totalExpenses, Math.abs(netEarnings))) * 180 || 0}px`,
               }}
             ></div>
             <div className="mt-2 text-center">
-              <p className="font-medium">Net Profit</p>
+              <p className="text-sm sm:text-base font-medium">Net Profit</p>
               <p
-                className={`text-sm ${netEarnings >= 0 ? "text-blue-500" : "text-orange-500"}`}
+                className={`text-xs sm:text-sm ${netEarnings >= 0 ? "text-blue-500" : "text-orange-500"}`}
               >
                 ${netEarnings.toFixed(2)}
               </p>
