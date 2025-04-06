@@ -78,8 +78,6 @@ export function InvoiceDetail() {
   async function fetchInvoiceDetails(invoiceId: string) {
     try {
       setLoading(true);
-
-      // Fetch invoice details
       const { data: invoiceData, error: invoiceError } = await supabase
         .from("invoices")
         .select("*")
@@ -89,7 +87,6 @@ export function InvoiceDetail() {
       if (invoiceError) throw invoiceError;
       if (!invoiceData) throw new Error("Invoice not found");
 
-      // Fetch supplier details
       let supplierData = null;
       if (invoiceData.supplier_id) {
         const { data, error: supplierError } = await supabase
@@ -97,13 +94,9 @@ export function InvoiceDetail() {
           .select("*")
           .eq("id", invoiceData.supplier_id)
           .single();
-
-        if (!supplierError) {
-          supplierData = data;
-        }
+        if (!supplierError) supplierData = data;
       }
 
-      // Fetch customer details if customer_id is available
       let customerData = null;
       if (invoiceData.customer_id) {
         const { data, error: customerError } = await supabase
@@ -111,13 +104,9 @@ export function InvoiceDetail() {
           .select("*")
           .eq("id", invoiceData.customer_id)
           .single();
-
-        if (!customerError) {
-          customerData = data;
-        }
+        if (!customerError) customerData = data;
       }
 
-      // Fetch shop details
       let shopData = null;
       if (invoiceData.shop_id) {
         const { data, error: shopError } = await supabase
@@ -125,13 +114,9 @@ export function InvoiceDetail() {
           .select("*")
           .eq("id", invoiceData.shop_id)
           .single();
-
-        if (!shopError) {
-          shopData = data;
-        }
+        if (!shopError) shopData = data;
       }
 
-      // Fetch invoice items associated with this invoice
       const { data: invoiceItemsData, error: invoiceItemsError } =
         await supabase
           .from("invoice_items")
@@ -140,7 +125,6 @@ export function InvoiceDetail() {
 
       if (invoiceItemsError) throw invoiceItemsError;
 
-      // Process invoice items to include product details
       const processedInvoiceItems = invoiceItemsData?.map((item) => ({
         ...item,
         product_id: (item.products && item.products.id) || item.product_id,
@@ -154,7 +138,6 @@ export function InvoiceDetail() {
           item.watt || (item.products && item.products.watt) || null,
       }));
 
-      // Fetch products associated with this invoice
       const { data: productsData, error: productsError } = await supabase
         .from("products")
         .select("*")
@@ -162,7 +145,6 @@ export function InvoiceDetail() {
 
       if (productsError) throw productsError;
 
-      // Fetch payment history
       const { data: paymentsData, error: paymentsError } = await supabase
         .from("payments")
         .select("*")
@@ -200,26 +182,26 @@ export function InvoiceDetail() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "paid":
-        return "border-green-200 bg-green-50 text-green-600";
+        return "border-green-600 bg-green-100 text-green-800";
       case "partially_paid":
-        return "border-yellow-200 bg-yellow-50 text-yellow-600";
+        return "border-yellow-600 bg-yellow-100 text-yellow-800";
       case "unpaid":
-        return "border-red-200 bg-red-50 text-red-600";
+        return "border-red-600 bg-red-100 text-red-800";
       default:
-        return "";
+        return "border-gray-600 bg-gray-100 text-gray-800";
     }
   };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
       case "paid":
-        return "Paid";
+        return "PAID";
       case "partially_paid":
-        return "Partially Paid";
+        return "PARTIALLY PAID";
       case "unpaid":
-        return "Unpaid";
+        return "UNPAID";
       default:
-        return status;
+        return status.toUpperCase();
     }
   };
 
@@ -237,7 +219,7 @@ export function InvoiceDetail() {
     ) {
       toast({
         variant: "destructive",
-        title: "Invalid amount",
+        title: "Invalid Amount",
         description: "Please enter a valid payment amount",
       });
       return;
@@ -246,16 +228,14 @@ export function InvoiceDetail() {
     if (Number(paymentAmount) > invoice.remaining_amount) {
       toast({
         variant: "destructive",
-        title: "Invalid amount",
-        description: "Payment amount cannot exceed the remaining amount",
+        title: "Invalid Amount",
+        description: "Payment amount cannot exceed remaining balance",
       });
       return;
     }
 
     try {
       setIsSubmittingPayment(true);
-
-      // Add payment record
       const { error: paymentError } = await supabase.from("payments").insert({
         invoice_id: id,
         amount: Number(paymentAmount),
@@ -266,7 +246,6 @@ export function InvoiceDetail() {
 
       if (paymentError) throw paymentError;
 
-      // Update invoice remaining amount and status
       const newRemainingAmount = Math.max(
         0,
         invoice.remaining_amount - Number(paymentAmount),
@@ -285,27 +264,22 @@ export function InvoiceDetail() {
       if (invoiceError) throw invoiceError;
 
       toast({
-        title: "Payment added",
-        description: `Payment of ${Number(paymentAmount).toFixed(2)} has been recorded successfully.`,
+        title: "Payment Recorded",
+        description: `Payment of $${Number(paymentAmount).toFixed(2)} successfully recorded`,
       });
 
-      // Reset form and close dialog
       setPaymentAmount("");
       setPaymentMethod("cash");
       setPaymentNotes("");
       setIsAddPaymentOpen(false);
-
-      // Refresh invoice details
       fetchInvoiceDetails(id);
     } catch (error) {
       console.error("Error adding payment:", error);
       toast({
         variant: "destructive",
-        title: "Error adding payment",
+        title: "Payment Error",
         description:
-          error instanceof Error
-            ? error.message
-            : "An error occurred while adding payment",
+          error instanceof Error ? error.message : "Failed to process payment",
       });
     } finally {
       setIsSubmittingPayment(false);
@@ -314,19 +288,18 @@ export function InvoiceDetail() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-600"></div>
       </div>
     );
   }
 
   if (!invoice) {
     return (
-      <div className="text-center py-10 text-gray-500">Invoice not found.</div>
+      <div className="text-center py-12 text-gray-600">Invoice not found</div>
     );
   }
 
-  // Extract discount amount from notes if available (for sales invoices)
   const getDiscountAmount = () => {
     if (!invoice.notes) return 0;
     const discountMatch = invoice.notes.match(/Discount: ([\d.]+)/);
@@ -337,8 +310,8 @@ export function InvoiceDetail() {
   const subtotalBeforeDiscount = invoice.total_amount + discountAmount;
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-8 print:space-y-0">
+      <div className="flex justify-between items-center print:hidden">
         <Button
           variant="outline"
           onClick={() => navigate("/dashboard/invoices")}
@@ -346,11 +319,10 @@ export function InvoiceDetail() {
         >
           <ArrowLeft className="h-4 w-4" /> Back to Invoices
         </Button>
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           {invoice.remaining_amount > 0 && (
             <Button
               onClick={() => setIsAddPaymentOpen(true)}
-              variant="default"
               className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
             >
               <Plus className="h-4 w-4" /> Add Payment
@@ -367,262 +339,182 @@ export function InvoiceDetail() {
             <Button
               variant="outline"
               onClick={() => setIsReturnDialogOpen(true)}
-              className="flex items-center gap-2 border-orange-200 bg-orange-50 text-orange-600 hover:bg-orange-100"
+              className="flex items-center gap-2 border-orange-600 text-orange-600 hover:bg-orange-50"
             >
               <RotateCcw className="h-4 w-4" /> Initiate Return
             </Button>
           )}
-          <Button onClick={() => toPDF()} className="flex items-center gap-2">
+          <Button
+            onClick={() => toPDF()}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+          >
             <Download className="h-4 w-4" /> Download PDF
           </Button>
         </div>
       </div>
 
       <Card
-        className="bg-white print:shadow-none overflow-auto max-h-[80vh]"
+        className="border-none print:border print:shadow-none"
         ref={targetRef}
       >
         <CardContent className="p-8">
-          <div className="flex justify-between items-start">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-serif font-bold text-gray-900">
+              SHAJALAL LIGHTING
+            </h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Invoice #{invoice.invoice_number}
+            </p>
+            <Badge
+              variant="outline"
+              className={`mt-2 ${getStatusColor(invoice.status)} font-semibold`}
+            >
+              {getStatusLabel(invoice.status)}
+            </Badge>
+          </div>
+
+          {/* Company Info */}
+          <div className="grid grid-cols-2 gap-8 mb-8">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                {invoice.invoice_type === "product_addition"
-                  ? "PURCHASE INVOICE"
-                  : "SALES INVOICE"}
-              </h1>
-              <p className="text-gray-500 mt-1">#{invoice.invoice_number}</p>
+              <h2 className="text-sm font-semibold text-gray-700 uppercase">
+                Billed From
+              </h2>
+              <p className="mt-2 font-medium">SHAJALAL LIGHTING</p>
+              <p className="text-sm text-gray-600">
+                {invoice.shop_address || "Address not specified"}
+              </p>
+              <p className="text-sm text-gray-600">
+                {invoice.shop_phone || "Phone not specified"}
+              </p>
             </div>
-            <div className="flex flex-col gap-2 items-end">
-              <Badge
-                variant="outline"
-                className={`${getStatusColor(invoice.status)} text-sm px-3 py-1`}
-              >
-                {getStatusLabel(invoice.status)}
-              </Badge>
-              {invoice.invoice_type && (
-                <Badge
-                  variant="outline"
-                  className={
-                    invoice.invoice_type === "sales"
-                      ? "border-green-200 bg-green-50 text-green-600"
-                      : "border-blue-200 bg-blue-50 text-blue-600"
-                  }
-                >
-                  {invoice.invoice_type === "sales" ? "Sales" : "Purchase"}
-                </Badge>
-              )}
+            <div>
+              <h2 className="text-sm font-semibold text-gray-700 uppercase">
+                Billed To
+              </h2>
+              <p className="mt-2 font-medium">
+                {invoice.invoice_type === "sales"
+                  ? invoice.customer_name ||
+                    invoice.customer_details?.name ||
+                    "Unknown Customer"
+                  : invoice.supplier_name}
+              </p>
+              <p className="text-sm text-gray-600">
+                {invoice.invoice_type === "sales"
+                  ? invoice.customer_phone ||
+                    invoice.customer_details?.phone ||
+                    ""
+                  : ""}
+              </p>
+              {invoice.invoice_type === "sales" &&
+                invoice.customer_details?.address && (
+                  <p className="text-sm text-gray-600">
+                    {invoice.customer_details.address}
+                  </p>
+                )}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-8 mt-8">
-            <div>
-              <h3 className="text-sm font-medium text-gray-500 uppercase">
-                From
-              </h3>
-              <p className="text-lg font-medium mt-1">
-                {invoice.supplier_name}
-              </p>
-              <p className="text-gray-600 mt-1">
-                Supplier ID: {invoice.supplier_id}
-              </p>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-500 uppercase">
-                To
-              </h3>
-              {invoice.invoice_type === "sales" ? (
-                <div>
-                  <p className="text-lg font-medium mt-1">
-                    {invoice.customer_name ||
-                      invoice.customer_details?.name ||
-                      "Unknown Customer"}
-                  </p>
-                  <p className="text-gray-600">
-                    {invoice.customer_phone ||
-                      invoice.customer_details?.phone ||
-                      ""}
-                  </p>
-                  {invoice.customer_details?.email && (
-                    <p className="text-gray-600">
-                      {invoice.customer_details.email}
-                    </p>
-                  )}
-                  {invoice.customer_details?.address && (
-                    <p className="text-gray-600">
-                      {invoice.customer_details.address}
-                    </p>
-                  )}
-                  {invoice.customer_id && (
-                    <p className="text-gray-600 text-sm">
-                      Customer ID: {invoice.customer_id}
-                    </p>
-                  )}
-                  <p className="text-gray-600 mt-2 font-medium">
-                    Shop: {invoice.shop_details?.name || "Unknown Shop"}
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  <p className="text-lg font-medium mt-1">
-                    {invoice.shop_name}
-                  </p>
-                  {invoice.shop_address && (
-                    <p className="text-gray-600 mt-1">{invoice.shop_address}</p>
-                  )}
-                  {invoice.shop_phone && (
-                    <p className="text-gray-600">{invoice.shop_phone}</p>
-                  )}
-                </div>
-              )}
+          {/* Invoice Details */}
+          <div className="mb-8">
+            <div className="flex justify-between text-sm">
+              <div>
+                <p className="font-semibold text-gray-700">Invoice Date:</p>
+                <p>{new Date(invoice.created_at).toLocaleDateString()}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-gray-700">Invoice Type:</p>
+                <p>{invoice.invoice_type === "sales" ? "Sales" : "Purchase"}</p>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-8 mt-8">
-            <div>
-              <h3 className="text-sm font-medium text-gray-500 uppercase">
-                Invoice Date
-              </h3>
-              <p className="text-base mt-1">
-                {new Date(invoice.created_at).toLocaleDateString()}
-              </p>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-500 uppercase">
-                Payment Details
-              </h3>
-              <p className="text-base mt-1">
-                Total Amount: ${invoice.total_amount.toFixed(2)}
-              </p>
-              <p className="text-base">
-                Advance Payment: ${invoice.advance_payment.toFixed(2)}
-              </p>
-              <p className="text-base font-medium">
-                Remaining Amount: ${invoice.remaining_amount.toFixed(2)}
-              </p>
-            </div>
-          </div>
-
-          <Separator className="my-8" />
-
-          <h3 className="text-lg font-medium">Products</h3>
-          <div className="mt-4 border rounded-md overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Product
+          {/* Items Table */}
+          <div className="mb-8">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-gray-100 border-b border-gray-300">
+                  <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">
+                    Description
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Quantity
+                  <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">
+                    Qty
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">
                     Unit Price
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">
                     Total
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody>
                 {invoice.invoice_items && invoice.invoice_items.length > 0 ? (
                   invoice.invoice_items.map((item) => (
-                    <tr key={item.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        <div>
-                          <p>
-                            {item.product_name ||
-                              (item.product_id &&
-                                item.products &&
-                                item.products.name) ||
-                              item.name ||
-                              "Unknown Product"}
+                    <tr key={item.id} className="border-b border-gray-200">
+                      <td className="py-3 px-4">
+                        <p className="font-medium">{item.product_name}</p>
+                        {item.product_barcode && (
+                          <p className="text-xs text-gray-600">
+                            Barcode: {item.product_barcode}
                           </p>
-                          <p className="text-xs text-gray-500">
-                            Supplier: {item.supplier_name || "Unknown"}
+                        )}
+                        {item.product_watt && (
+                          <p className="text-xs text-gray-600">
+                            Wattage: {item.product_watt}W
                           </p>
-                          {(item.product_barcode || item.barcode) && (
-                            <p className="text-xs text-gray-500">
-                              Barcode: {item.product_barcode || item.barcode}
-                            </p>
-                          )}
-                          {(item.product_watt || item.watt) && (
-                            <p className="text-xs text-gray-500">
-                              Wattage: {item.product_watt || item.watt}W
-                            </p>
-                          )}
-                        </div>
+                        )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.quantity}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="py-3 px-4">{item.quantity}</td>
+                      <td className="py-3 px-4">
                         ${Number(item.unit_price).toFixed(2)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="py-3 px-4">
                         ${Number(item.total_price).toFixed(2)}
                       </td>
                     </tr>
                   ))
                 ) : invoice.products && invoice.products.length > 0 ? (
-                  invoice.products.map((product) => {
-                    // Fetch supplier name for each product
-                    let supplierName = "Unknown";
-                    if (
-                      product.supplier_id &&
-                      invoice.supplier_details &&
-                      invoice.supplier_details.name
-                    ) {
-                      supplierName = invoice.supplier_details.name;
-                    }
-
-                    return (
-                      <tr key={product.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          <div>
-                            <p>{product.name || "Unknown Product"}</p>
-                            <p className="text-xs text-gray-500">
-                              Supplier: {supplierName}
-                            </p>
-                            {product.watt && (
-                              <p className="text-xs text-gray-500">
-                                Wattage: {product.watt}W
-                              </p>
-                            )}
-                            {product.barcode && (
-                              <p className="text-xs text-gray-500">
-                                Barcode: {product.barcode}
-                              </p>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {product.quantity}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          $
-                          {invoice.invoice_type === "product_addition"
-                            ? product.buying_price.toFixed(2)
-                            : product.selling_price.toFixed(2)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          $
-                          {(
-                            product.quantity *
-                            (invoice.invoice_type === "product_addition"
-                              ? product.buying_price
-                              : product.selling_price)
-                          ).toFixed(2)}
-                        </td>
-                      </tr>
-                    );
-                  })
+                  invoice.products.map((product) => (
+                    <tr key={product.id} className="border-b border-gray-200">
+                      <td className="py-3 px-4">
+                        <p className="font-medium">{product.name}</p>
+                        {product.barcode && (
+                          <p className="text-xs text-gray-600">
+                            Barcode: {product.barcode}
+                          </p>
+                        )}
+                        {product.watt && (
+                          <p className="text-xs text-gray-600">
+                            Wattage: {product.watt}W
+                          </p>
+                        )}
+                      </td>
+                      <td className="py-3 px-4">{product.quantity}</td>
+                      <td className="py-3 px-4">
+                        $
+                        {invoice.invoice_type === "product_addition"
+                          ? product.buying_price.toFixed(2)
+                          : product.selling_price.toFixed(2)}
+                      </td>
+                      <td className="py-3 px-4">
+                        $
+                        {(
+                          product.quantity *
+                          (invoice.invoice_type === "product_addition"
+                            ? product.buying_price
+                            : product.selling_price)
+                        ).toFixed(2)}
+                      </td>
+                    </tr>
+                  ))
                 ) : (
                   <tr>
                     <td
                       colSpan={4}
-                      className="px-6 py-4 text-center text-sm text-gray-500"
+                      className="py-3 px-4 text-center text-gray-600"
                     >
-                      No products found for this invoice.
+                      No items found
                     </td>
                   </tr>
                 )}
@@ -630,85 +522,54 @@ export function InvoiceDetail() {
             </table>
           </div>
 
-          <div className="mt-8 flex justify-end">
-            <div className="w-80 space-y-2">
-              <div className="flex justify-between">
-                <p className="text-gray-600">Subtotal:</p>
-                <p className="font-medium">
-                  ${subtotalBeforeDiscount.toFixed(2)}
-                </p>
+          {/* Totals */}
+          <div className="flex justify-end mb-8">
+            <div className="w-72 text-sm">
+              <div className="flex justify-between py-2">
+                <span className="font-semibold">Subtotal:</span>
+                <span>${subtotalBeforeDiscount.toFixed(2)}</span>
               </div>
-              {invoice.invoice_type === "sales" && discountAmount > 0 && (
-                <>
-                  <div className="flex justify-between">
-                    <p className="text-gray-600">Discount Amount:</p>
-                    <p className="font-medium">${discountAmount.toFixed(2)}</p>
-                  </div>
-                  <div className="flex justify-between">
-                    <p className="text-gray-600">Total After Discount:</p>
-                    <p className="font-medium">
-                      ${invoice.total_amount.toFixed(2)}
-                    </p>
-                  </div>
-                </>
-              )}
-              <div className="flex justify-between">
-                <p className="text-gray-600">Initial Payment:</p>
-                <p className="font-medium">
-                  ${invoice.advance_payment.toFixed(2)}
-                </p>
-              </div>
-              {invoice.payments && invoice.payments.length > 0 && (
-                <div className="pt-2">
-                  <p className="text-gray-600 text-sm font-medium">
-                    Additional Payments:
-                  </p>
-                  {invoice.payments.map((payment, index) => (
-                    <div
-                      key={payment.id}
-                      className="flex justify-between text-sm pl-4 pt-1"
-                    >
-                      <p className="text-gray-600">
-                        {new Date(payment.payment_date).toLocaleDateString()} (
-                        {payment.payment_method}):
-                      </p>
-                      <p className="font-medium">
-                        ${Number(payment.amount).toFixed(2)}
-                      </p>
-                    </div>
-                  ))}
+              {discountAmount > 0 && (
+                <div className="flex justify-between py-2">
+                  <span className="font-semibold">Discount:</span>
+                  <span>-${discountAmount.toFixed(2)}</span>
                 </div>
               )}
-              <Separator className="my-2" />
-              <div className="flex justify-between">
-                <p className="text-gray-800 font-medium">Remaining Amount:</p>
-                <p className="font-bold">
+              <div className="flex justify-between py-2 border-t border-gray-300">
+                <span className="font-semibold">Total:</span>
+                <span>${invoice.total_amount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between py-2">
+                <span className="font-semibold">Paid:</span>
+                <span>${invoice.advance_payment.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between py-2 border-t border-gray-300">
+                <span className="font-bold">Balance Due:</span>
+                <span className="font-bold">
                   ${invoice.remaining_amount.toFixed(2)}
-                </p>
+                </span>
               </div>
             </div>
           </div>
 
-          <div className="mt-12 pt-8 border-t">
-            <p className="text-center text-gray-500 text-sm">
-              Thank you for your business. For any questions regarding this
-              invoice, please contact us.
-            </p>
+          {/* Footer */}
+          <div className="text-center text-xs text-gray-600 border-t pt-4">
+            <p>Thank you for your business with SHAJALAL LIGHTING</p>
           </div>
         </CardContent>
       </Card>
 
-      {/* Add Payment Dialog */}
+      {/* Payment Dialog */}
       <Dialog open={isAddPaymentOpen} onOpenChange={setIsAddPaymentOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Payment</DialogTitle>
+            <DialogTitle>Record Payment</DialogTitle>
             <DialogDescription>
-              Record a payment for invoice #{invoice.invoice_number}. Remaining
-              amount: ${invoice.remaining_amount.toFixed(2)}
+              Add payment for Invoice #{invoice?.invoice_number} - Balance: $
+              {invoice?.remaining_amount.toFixed(2)}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="space-y-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="amount" className="text-right">
                 Amount
@@ -718,11 +579,10 @@ export function InvoiceDetail() {
                 type="number"
                 step="0.01"
                 min="0.01"
-                max={invoice.remaining_amount}
+                max={invoice?.remaining_amount}
                 value={paymentAmount}
                 onChange={(e) => setPaymentAmount(e.target.value)}
                 className="col-span-3"
-                placeholder="0.00"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
@@ -731,11 +591,11 @@ export function InvoiceDetail() {
               </Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                 <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select payment method" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="card">Card</SelectItem>
+                  <SelectItem value="card">Credit Card</SelectItem>
                   <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
                   <SelectItem value="check">Check</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
@@ -751,7 +611,7 @@ export function InvoiceDetail() {
                 value={paymentNotes}
                 onChange={(e) => setPaymentNotes(e.target.value)}
                 className="col-span-3"
-                placeholder="Optional notes"
+                placeholder="Optional"
               />
             </div>
           </div>
@@ -763,27 +623,19 @@ export function InvoiceDetail() {
               Cancel
             </Button>
             <Button onClick={handleAddPayment} disabled={isSubmittingPayment}>
-              {isSubmittingPayment ? (
-                <span className="flex items-center gap-2">
-                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                  Processing...
-                </span>
-              ) : (
-                "Add Payment"
-              )}
+              {isSubmittingPayment ? "Processing..." : "Record Payment"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Return Products Dialog */}
+      {/* Return Dialog */}
       <Dialog open={isReturnDialogOpen} onOpenChange={setIsReturnDialogOpen}>
         <DialogContent className="max-w-5xl">
           <DialogHeader>
-            <DialogTitle>Initiate Product Return</DialogTitle>
+            <DialogTitle>Initiate Return</DialogTitle>
             <DialogDescription>
-              Create a return request for items from invoice #
-              {invoice.invoice_number}
+              Process return for Invoice #{invoice?.invoice_number}
             </DialogDescription>
           </DialogHeader>
           <ReturnForm
@@ -791,8 +643,8 @@ export function InvoiceDetail() {
             onSuccess={() => {
               setIsReturnDialogOpen(false);
               toast({
-                title: "Return initiated",
-                description: "Return request has been created successfully",
+                title: "Return Processed",
+                description: "Return request successfully created",
               });
             }}
             onCancel={() => setIsReturnDialogOpen(false)}

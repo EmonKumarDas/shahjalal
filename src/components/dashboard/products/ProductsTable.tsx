@@ -29,7 +29,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Plus, Search, RefreshCw } from "lucide-react";
+import {
+  Edit,
+  Trash2,
+  Plus,
+  Search,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { Product, Supplier } from "@/types/schema";
 import { ProductForm } from "./ProductForm";
@@ -68,6 +76,9 @@ export function ProductsTable() {
   const [modelFilter, setModelFilter] = useState<string>("");
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [shops, setShops] = useState<any[]>([]);
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -315,6 +326,22 @@ export function ProductsTable() {
     );
   });
 
+  // Pagination calculations
+  const totalItems = filteredProducts.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleItemsPerPageChange = (value: string) => {
+    setItemsPerPage(Number(value));
+    setCurrentPage(1); // Reset to first page when changing items per page
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -465,103 +492,149 @@ export function ProductsTable() {
             : "No products found. Add your first product to get started."}
         </div>
       ) : (
-        <div className="rounded-md border bg-white">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Product</TableHead>
-                <TableHead>Supplier</TableHead>
-                <TableHead>Shop</TableHead>
-                <TableHead>Watt</TableHead>
-                <TableHead>Size</TableHead>
-                <TableHead>Color</TableHead>
-                <TableHead>Model</TableHead>
-                <TableHead>Buying Price</TableHead>
-                <TableHead>Selling Price</TableHead>
-                <TableHead>Stock</TableHead>
-                <TableHead>Added Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredProducts.map((product) => {
-                const { status, label } = getStockStatus(product.quantity);
-                return (
-                  <TableRow key={product.id}>
-                    <TableCell className="font-medium">
-                      {product.name}
-                    </TableCell>
-                    <TableCell>{product.suppliers?.name || "N/A"}</TableCell>
-                    <TableCell>{product.shop_name}</TableCell>
-                    <TableCell>{product.watt || "N/A"}</TableCell>
-                    <TableCell>{product.size || "N/A"}</TableCell>
-                    <TableCell>{product.color || "N/A"}</TableCell>
-                    <TableCell>{product.model || "N/A"}</TableCell>
-                    <TableCell>
-                      ${Number(product.buying_price).toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      ${Number(product.selling_price).toFixed(2)}
-                    </TableCell>
-                    <TableCell>{product.quantity}</TableCell>
-                    <TableCell>
-                      {format(new Date(product.created_at), "MMM dd, yyyy")}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={getStatusColor(status)}
-                      >
-                        {label}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        {product.quantity <= 5 && (
+        <div className="space-y-4">
+          <div className="rounded-md border bg-white">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Supplier</TableHead>
+                  <TableHead>Shop</TableHead>
+                  <TableHead>Watt</TableHead>
+                  <TableHead>Size</TableHead>
+                  <TableHead>Color</TableHead>
+                  <TableHead>Model</TableHead>
+                  <TableHead>Buying Price</TableHead>
+                  <TableHead>Selling Price</TableHead>
+                  <TableHead>Stock</TableHead>
+                  <TableHead>Added Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedProducts.map((product) => {
+                  const { status, label } = getStockStatus(product.quantity);
+                  return (
+                    <TableRow key={product.id}>
+                      <TableCell className="font-medium">
+                        {product.name}
+                      </TableCell>
+                      <TableCell>{product.suppliers?.name || "N/A"}</TableCell>
+                      <TableCell>{product.shop_name}</TableCell>
+                      <TableCell>{product.watt || "N/A"}</TableCell>
+                      <TableCell>{product.size || "N/A"}</TableCell>
+                      <TableCell>{product.color || "N/A"}</TableCell>
+                      <TableCell>{product.model || "N/A"}</TableCell>
+                      <TableCell>
+                        ${Number(product.buying_price).toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        ${Number(product.selling_price).toFixed(2)}
+                      </TableCell>
+                      <TableCell>{product.quantity}</TableCell>
+                      <TableCell>
+                        {format(new Date(product.created_at), "MMM dd, yyyy")}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={getStatusColor(status)}
+                        >
+                          {label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          {product.quantity <= 5 && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRestockClick(product)}
+                              title="Restock Product"
+                              className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleRestockClick(product)}
-                            title="Restock Product"
-                            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                            onClick={() =>
+                              navigate(`/dashboard/products/${product.id}`)
+                            }
+                            title="View Product Details"
                           >
-                            <RefreshCw className="h-4 w-4" />
+                            <Search className="h-4 w-4" />
                           </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() =>
-                            navigate(`/dashboard/products/${product.id}`)
-                          }
-                          title="View Product Details"
-                        >
-                          <Search className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEditClick(product)}
-                          title="Edit Product"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteClick(product)}
-                          title="Delete Product"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditClick(product)}
+                            title="Edit Product"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteClick(product)}
+                            title="Delete Product"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination Controls */}
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="itemsPerPage">Items per page:</Label>
+              <Select
+                value={itemsPerPage.toString()}
+                onValueChange={handleItemsPerPageChange}
+              >
+                <SelectTrigger className="w-[70px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              <span className="text-sm">
+                Page {currentPage} of {totalPages} ({totalItems} items)
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 

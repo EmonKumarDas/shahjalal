@@ -59,7 +59,7 @@ export type Product = Database["public"]["Tables"]["products"]["Row"] & {
   remaining_amount?: number;
 };
 
-export type InvoiceType = "sales" | "product_addition";
+export type InvoiceType = "sales" | "product_addition" | "exchange";
 
 export type ProductInsert =
   Database["public"]["Tables"]["products"]["Insert"] & {
@@ -221,6 +221,26 @@ export type PayrollUpdate = {
   updated_at?: string | null;
 };
 
+export type ProductHistory = {
+  id: string;
+  product_id: string;
+  quantity: number;
+  action_type: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string | null;
+};
+
+export type ProductHistoryInsert = {
+  id?: string;
+  product_id: string;
+  quantity: number;
+  action_type: string;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string | null;
+};
+
 export type SalaryPayment = {
   id: string;
   employee_id: string;
@@ -284,4 +304,67 @@ export type OthersCostUpdate = {
   notes?: string | null;
   created_at?: string;
   updated_at?: string | null;
+};
+
+export type ProductReturn = {
+  id: string;
+  invoice_id: string;
+  product_id: string;
+  customer_id: string;
+  quantity: number;
+  reason: string | null;
+  return_type: "refund" | "exchange";
+  status: "pending" | "processed" | "rejected";
+  refund_amount: number;
+  exchange_product_id?: string | null;
+  price_difference?: number;
+  payment_method?: string;
+  condition?: string;
+  return_fees?: number;
+  admin_notes?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+  total_amount?: number;
+};
+
+export type ProductReturnInsert = {
+  id?: string;
+  invoice_id: string;
+  product_id: string;
+  customer_id: string;
+  quantity: number;
+  reason?: string | null;
+  return_type: "refund" | "exchange";
+  status?: "pending" | "processed" | "rejected";
+  refund_amount: number;
+  exchange_product_id?: string | null;
+  price_difference?: number;
+  payment_method?: string;
+  condition?: string;
+  return_fees?: number;
+  admin_notes?: string | null;
+  created_at?: string;
+  updated_at?: string | null;
+  total_amount?: number;
+};
+
+export type ProductReturnUpdate = {
+  id?: string;
+  invoice_id?: string;
+  product_id?: string;
+  customer_id?: string;
+  quantity?: number;
+  reason?: string | null;
+  return_type?: "refund" | "exchange";
+  status?: "pending" | "processed" | "rejected";
+  refund_amount?: number;
+  exchange_product_id?: string | null;
+  price_difference?: number;
+  payment_method?: string;
+  condition?: string;
+  return_fees?: number;
+  admin_notes?: string | null;
+  created_at?: string;
+  updated_at?: string | null;
+  total_amount?: number;
 };

@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { Navigate, Route, Routes, useRoutes } from "react-router-dom";
 import routes from "tempo-routes";
 import LoginForm from "./components/auth/LoginForm";
@@ -22,6 +22,7 @@ import Returns from "./components/pages/returns";
 import { AuthProvider, useAuth } from "../supabase/auth";
 import { Toaster } from "./components/ui/toaster";
 import { LoadingScreen } from "./components/ui/loading-spinner";
+import { startSupabaseKeepAlive } from "./lib/supabase-keepalive";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -228,6 +229,15 @@ function AppRoutes() {
 }
 
 function App() {
+  // Initialize Supabase keep-alive mechanism
+  useEffect(() => {
+    // Start the keep-alive with a 5-minute interval (300000ms)
+    const cleanup = startSupabaseKeepAlive(300000);
+
+    // Clean up the interval when the component unmounts
+    return cleanup;
+  }, []);
+
   return (
     <AuthProvider>
       <Suspense fallback={<LoadingScreen text="Loading application..." />}>

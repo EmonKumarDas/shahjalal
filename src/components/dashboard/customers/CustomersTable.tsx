@@ -25,6 +25,8 @@ type Customer = {
   created_at: string;
   total_spent?: number;
   last_purchase?: string;
+  balance?: number;
+  total_due?: number;
 };
 
 export function CustomersTable() {
@@ -35,6 +37,9 @@ export function CustomersTable() {
     null,
   );
   const [showDetails, setShowDetails] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   useEffect(() => {
     fetchCustomers();
@@ -80,16 +85,26 @@ export function CustomersTable() {
               return customer;
             }
 
-            // Calculate total spent (only count paid amounts)
-            const totalSpent =
-              invoices?.reduce((sum, invoice) => {
-                if (invoice.status === "paid") {
-                  return sum + Number(invoice.total_amount || 0);
-                } else if (invoice.status === "partially_paid") {
-                  return sum + Number(invoice.advance_payment || 0);
-                }
-                return sum;
-              }, 0) || 0;
+            // Calculate total spent and balance
+            let totalSpent = 0;
+            let totalDue = 0;
+
+            invoices?.forEach((invoice) => {
+              const invoiceTotal = Number(invoice.total_amount || 0);
+              const advancePayment = Number(invoice.advance_payment || 0);
+
+              if (invoice.status === "paid") {
+                totalSpent += invoiceTotal;
+              } else if (invoice.status === "partially_paid") {
+                totalSpent += advancePayment;
+                totalDue += invoiceTotal - advancePayment;
+              } else if (invoice.status === "unpaid") {
+                totalDue += invoiceTotal;
+              }
+            });
+
+            // Calculate balance (negative means customer has credit)
+            const balance = totalSpent - totalDue;
 
             // Get last purchase date
             const lastPurchase =
@@ -99,6 +114,8 @@ export function CustomersTable() {
               ...customer,
               total_spent: totalSpent,
               last_purchase: lastPurchase,
+              balance: balance,
+              total_due: totalDue,
             };
           } catch (err) {
             console.error("Error processing customer data:", err);
@@ -121,17 +138,91 @@ export function CustomersTable() {
     }
   }
 
-  const filteredCustomers = customers.filter(
-    (customer) =>
+  // Get URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const filterParam = urlParams.get("filter");
+
+  // Filter customers based on search term and URL parameters
+  const filteredCustomers = customers.filter((customer) => {
+    // First apply search filter
+    const matchesSearch =
       customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.phone.includes(searchTerm) ||
       (customer.email &&
-        customer.email.toLowerCase().includes(searchTerm.toLowerCase())),
+        customer.email.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    // Then apply credits filter if needed
+    if (filterParam === "credits") {
+      // Show only customers with credits (negative balance)
+      return matchesSearch && customer.balance < 0;
+    }
+
+    return matchesSearch;
+  });
+
+  // Calculate pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const paginatedCustomers = filteredCustomers.slice(
+    indexOfFirstItem,
+    indexOfLastItem,
   );
+  const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
 
   const handleViewDetails = (customer: Customer) => {
     setSelectedCustomer(customer);
     setShowDetails(true);
+  };
+
+  const handleDeleteCustomer = async (customerId: string) => {
+    if (!confirm("Are you sure you want to delete this customer?")) return;
+
+    try {
+      setIsDeleting(true);
+
+      // First check if customer has any invoices
+      const { data: invoices, error: invoiceError } = await supabase
+        .from("invoices")
+        .select("id")
+        .eq("customer_id", customerId)
+        .limit(1);
+
+      if (invoiceError) throw invoiceError;
+
+      if (invoices && invoices.length > 0) {
+        toast({
+          variant: "destructive",
+          title: "Cannot delete customer",
+          description:
+            "This customer has associated invoices and cannot be deleted.",
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from("customers")
+        .delete()
+        .eq("id", customerId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Customer deleted",
+        description: "The customer has been deleted successfully",
+      });
+
+      // Refresh the customer list
+      fetchCustomers();
+    } catch (error) {
+      console.error("Error deleting customer:", error);
+      toast({
+        variant: "destructive",
+        title: "Error deleting customer",
+        description: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -158,16 +249,19 @@ export function CustomersTable() {
               className="w-full sm:w-auto"
               onClick={() => {
                 // Create a new customer with default values
-                const newCustomer = {
+                const newCustomer: Customer = {
+                  id: "", // This will be generated by the database
                   name: "",
                   phone: "",
                   email: "",
                   address: "",
                   created_at: new Date().toISOString(),
+                  total_spent: 0,
+                  last_purchase: null,
                 };
 
                 // Set as selected customer and show details form
-                setSelectedCustomer(newCustomer as Customer);
+                setSelectedCustomer(newCustomer);
                 setShowDetails(true);
               }}
             >
@@ -182,6 +276,7 @@ export function CustomersTable() {
                   <TableHead>Customer</TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead>Total Spent</TableHead>
+                  <TableHead>Balance/Due</TableHead>
                   <TableHead>Last Purchase</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -205,7 +300,7 @@ export function CustomersTable() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredCustomers.map((customer) => (
+                  paginatedCustomers.map((customer) => (
                     <TableRow key={customer.id}>
                       <TableCell>
                         <div className="font-medium">{customer.name}</div>
@@ -233,6 +328,30 @@ export function CustomersTable() {
                         </Badge>
                       </TableCell>
                       <TableCell>
+                        {customer.balance < 0 ? (
+                          <Badge
+                            variant="outline"
+                            className="bg-blue-50 text-blue-700 border-blue-200"
+                          >
+                            Credit: ${Math.abs(customer.balance).toFixed(2)}
+                          </Badge>
+                        ) : customer.total_due > 0 ? (
+                          <Badge
+                            variant="outline"
+                            className="bg-red-50 text-red-700 border-red-200"
+                          >
+                            Due: ${customer.total_due.toFixed(2)}
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="bg-gray-50 text-gray-700 border-gray-200"
+                          >
+                            Settled
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         {customer.last_purchase
                           ? format(
                               new Date(customer.last_purchase),
@@ -248,15 +367,27 @@ export function CustomersTable() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleViewDetails(customer)}
+                          title="Edit customer"
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
                           className="text-red-500 hover:text-red-700"
+                          onClick={() => handleDeleteCustomer(customer.id)}
+                          disabled={isDeleting}
+                          title="Delete customer"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          {isDeleting ? (
+                            <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-red-600"></div>
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -265,6 +396,68 @@ export function CustomersTable() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Pagination */}
+          {filteredCustomers.length > 0 && (
+            <div className="flex items-center justify-between mt-4">
+              <div className="text-sm text-gray-500">
+                Showing {indexOfFirstItem + 1} to{" "}
+                {Math.min(indexOfLastItem, filteredCustomers.length)} of{" "}
+                {filteredCustomers.length} customers
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(prev - 1, 1))
+                  }
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                <div className="flex items-center space-x-1">
+                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                    // Show first page, last page, current page, and pages around current
+                    let pageToShow;
+                    if (totalPages <= 5) {
+                      pageToShow = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageToShow = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageToShow = totalPages - 4 + i;
+                    } else {
+                      pageToShow = currentPage - 2 + i;
+                    }
+
+                    return (
+                      <Button
+                        key={pageToShow}
+                        variant={
+                          currentPage === pageToShow ? "default" : "outline"
+                        }
+                        size="sm"
+                        className="w-8 h-8 p-0"
+                        onClick={() => setCurrentPage(pageToShow)}
+                      >
+                        {pageToShow}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                  }
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

@@ -325,14 +325,29 @@ export function ReturnProductForm({
 
       if (error) throw error;
 
+      // Update original product quantity (add back to inventory for refund)
+      const { data: productData, error: productError } = await supabase
+        .from("products")
+        .select("quantity")
+        .eq("id", selectedItem.product_id)
+        .single();
+
+      if (productError) throw productError;
+
+      await supabase
+        .from("products")
+        .update({
+          quantity: (productData.quantity || 0) + returnQuantity,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", selectedItem.product_id);
+
       // Add entry to product history
       await supabase.from("product_history").insert([
         {
           product_id: selectedItem.product_id,
           quantity: returnQuantity,
-          buying_price: 0, // We don't know the buying price from the invoice item
-          selling_price: selectedItem.unit_price,
-          operation_type: "return",
+          action_type: "return",
           notes: `Returned from invoice #${invoice.invoice_number}`,
           created_at: new Date().toISOString(),
         },
@@ -359,14 +374,58 @@ export function ReturnProductForm({
             {
               product_id: selectedExchangeProductId,
               quantity: returnQuantity,
-              buying_price: 0, // We don't know the buying price
-              selling_price: exchangeProduct.selling_price,
-              operation_type: "remove",
+              action_type: "remove",
               notes: `Exchanged for returned product from invoice #${invoice.invoice_number}`,
               created_at: new Date().toISOString(),
             },
           ]);
+
+          // Create a new invoice for the exchange if there's a price difference to pay
+          if (priceDifference > 0) {
+            const { data: invoiceData, error: invoiceError } = await supabase
+              .from("invoices")
+              .insert({
+                customer_id: invoice.customer_id,
+                customer_phone: invoice.customer_phone,
+                invoice_type: "exchange",
+                total_amount: priceDifference,
+                status: "pending",
+                notes: `Exchange invoice for return #${data?.[0]?.id}`,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .select();
+
+            if (invoiceError) throw invoiceError;
+
+            if (invoiceData && invoiceData.length > 0) {
+              // Add invoice item for the exchanged product
+              await supabase.from("invoice_items").insert({
+                invoice_id: invoiceData[0].id,
+                product_id: selectedExchangeProductId,
+                product_name: exchangeProduct.name,
+                quantity: returnQuantity,
+                unit_price: exchangeProduct.selling_price,
+                total_price: exchangeProduct.selling_price * returnQuantity,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              });
+            }
+          }
         }
+      }
+
+      // For refund, create a payment record with negative amount (refund)
+      if (returnType === "refund" && finalRefundAmount > 0) {
+        await supabase.from("payments").insert({
+          invoice_id: invoiceId,
+          amount: -finalRefundAmount, // Negative amount for refund
+          payment_method: paymentMethod,
+          notes: `Refund for return #${data?.[0]?.id}`,
+          payment_date: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
       }
 
       toast({

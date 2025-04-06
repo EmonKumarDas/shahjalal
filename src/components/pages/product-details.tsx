@@ -15,15 +15,21 @@ import {
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/use-toast";
-import { format } from "date-fns";
-import { ArrowLeft, Edit, Package, Calendar, Tag, Store } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import {
+  ArrowLeft,
+  Edit,
+  Package,
+  Calendar,
+  Tag,
+  Store,
+  History,
+  Clock,
+} from "lucide-react";
+import { ProductHistory } from "@/types/schema";
 
-interface ProductHistory {
-  id: string;
-  product_id: string;
-  quantity: number;
-  created_at: string;
-  updated_at: string;
+interface ProductHistoryWithDetails extends ProductHistory {
+  action_description?: string;
 }
 
 interface ProductWithDetails {
@@ -51,7 +57,9 @@ export default function ProductDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [product, setProduct] = useState<ProductWithDetails | null>(null);
-  const [productHistory, setProductHistory] = useState<ProductHistory[]>([]);
+  const [productHistory, setProductHistory] = useState<
+    ProductHistoryWithDetails[]
+  >([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -111,27 +119,126 @@ export default function ProductDetails() {
 
   async function fetchProductHistory() {
     try {
-      // For now, we'll use the product's creation date as the initial history entry
-      // In a real implementation, you would have a separate table for product history
-      const { data, error } = await supabase
-        .from("products")
-        .select("id, quantity, created_at, updated_at")
-        .eq("id", id)
-        .single();
+      // First, check if the product_history table exists
+      const { error: tableCheckError } = await supabase
+        .from("product_history")
+        .select("id")
+        .limit(1);
 
-      if (error) throw error;
+      if (tableCheckError) {
+        console.log(
+          "Product history table might not exist yet:",
+          tableCheckError,
+        );
+        // If the table doesn't exist, use the product's creation date as the initial history entry
+        const { data, error } = await supabase
+          .from("products")
+          .select("id, quantity, created_at, updated_at")
+          .eq("id", id)
+          .single();
 
-      if (data) {
-        // Create a history entry from the product's data
-        const historyEntry: ProductHistory = {
-          id: data.id,
-          product_id: data.id,
-          quantity: data.quantity,
-          created_at: data.created_at,
-          updated_at: data.updated_at,
-        };
+        if (error) throw error;
 
-        setProductHistory([historyEntry]);
+        if (data) {
+          // Create a history entry from the product's data
+          const historyEntry: ProductHistoryWithDetails = {
+            id: data.id,
+            product_id: data.id,
+            quantity: data.quantity,
+            action_type: "initial",
+            notes: "Initial product creation",
+            created_at: data.created_at,
+            updated_at: data.updated_at,
+            action_description: "Product Created",
+          };
+
+          setProductHistory([historyEntry]);
+        }
+        return;
+      }
+
+      // If the table exists, fetch the actual history
+      const { data: historyData, error: historyError } = await supabase
+        .from("product_history")
+        .select("*")
+        .eq("product_id", id)
+        .order("created_at", { ascending: false });
+
+      if (historyError) throw historyError;
+
+      if (historyData && historyData.length > 0) {
+        // Process the history data to add descriptive text
+        const processedHistory = historyData.map((entry) => {
+          let actionDescription = "";
+          switch (entry.action_type) {
+            case "create":
+              actionDescription = "Product Created";
+              break;
+            case "update":
+              actionDescription = "Quantity Updated";
+              break;
+            case "restock":
+              actionDescription = "Product Restocked";
+              break;
+            case "sale":
+              actionDescription = "Product Sold";
+              break;
+            case "return":
+              actionDescription = "Product Returned";
+              break;
+            default:
+              actionDescription =
+                entry.action_type.charAt(0).toUpperCase() +
+                entry.action_type.slice(1);
+          }
+
+          return {
+            ...entry,
+            action_description: actionDescription,
+          };
+        });
+
+        setProductHistory(processedHistory);
+      } else {
+        // If no history entries found, create an initial entry from the product data
+        const { data: productData, error: productError } = await supabase
+          .from("products")
+          .select("id, quantity, created_at, updated_at")
+          .eq("id", id)
+          .single();
+
+        if (productError) throw productError;
+
+        if (productData) {
+          // Create a history entry from the product's data
+          const historyEntry: ProductHistoryWithDetails = {
+            id: productData.id,
+            product_id: productData.id,
+            quantity: productData.quantity,
+            action_type: "initial",
+            notes: "Initial product creation",
+            created_at: productData.created_at,
+            updated_at: productData.updated_at,
+            action_description: "Product Created",
+          };
+
+          // Also create an entry in the product_history table for future reference
+          const { error: insertError } = await supabase
+            .from("product_history")
+            .insert({
+              product_id: productData.id,
+              quantity: productData.quantity,
+              action_type: "create",
+              notes: "Initial product creation",
+              created_at: productData.created_at,
+            });
+
+          if (insertError) {
+            console.error("Error creating initial history entry:", insertError);
+          }
+
+          setProductHistory([historyEntry]);
+        }
       }
     } catch (error) {
       console.error("Error fetching product history:", error);
@@ -379,35 +486,59 @@ export default function ProductDetails() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Storage History</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <History className="h-5 w-5 text-blue-600" />
+              Product History
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {productHistory.length === 0 ? (
               <p className="text-center py-4 text-gray-500">
-                No storage history available for this product.
+                No history available for this product.
               </p>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
+                    <TableHead>Date & Time</TableHead>
+                    <TableHead>Action</TableHead>
                     <TableHead>Quantity</TableHead>
-                    <TableHead>Last Updated</TableHead>
+                    <TableHead>Notes</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {productHistory.map((history) => (
                     <TableRow key={history.id}>
+                      <TableCell className="whitespace-nowrap">
+                        <div className="flex flex-col">
+                          <span className="font-medium">
+                            {format(
+                              new Date(history.created_at),
+                              "MMM dd, yyyy",
+                            )}
+                          </span>
+                          <span className="text-xs text-gray-500 flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {format(new Date(history.created_at), "HH:mm:ss")}
+                          </span>
+                        </div>
+                      </TableCell>
                       <TableCell>
-                        {format(new Date(history.created_at), "MMM dd, yyyy")}
+                        <Badge
+                          variant="outline"
+                          className={`
+                            ${history.action_type === "create" || history.action_type === "initial" ? "border-green-200 bg-green-50 text-green-600" : ""}
+                            ${history.action_type === "update" ? "border-blue-200 bg-blue-50 text-blue-600" : ""}
+                            ${history.action_type === "restock" ? "border-purple-200 bg-purple-50 text-purple-600" : ""}
+                            ${history.action_type === "sale" ? "border-amber-200 bg-amber-50 text-amber-600" : ""}
+                            ${history.action_type === "return" ? "border-orange-200 bg-orange-50 text-orange-600" : ""}
+                          `}
+                        >
+                          {history.action_description || history.action_type}
+                        </Badge>
                       </TableCell>
                       <TableCell>{history.quantity}</TableCell>
-                      <TableCell>
-                        {format(
-                          new Date(history.updated_at),
-                          "MMM dd, yyyy HH:mm",
-                        )}
-                      </TableCell>
+                      <TableCell>{history.notes || "-"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

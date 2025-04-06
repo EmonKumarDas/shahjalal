@@ -2,7 +2,14 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CalendarDays, BarChart2, Users, Clock } from "lucide-react";
+import {
+  CalendarDays,
+  BarChart2,
+  Users,
+  Clock,
+  Box,
+  Store,
+} from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 interface ProjectCardProps {
@@ -176,7 +183,7 @@ const DashboardGrid = ({
         <Card className="bg-white/90 backdrop-blur-sm border border-gray-100 rounded-2xl shadow-sm overflow-hidden w-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-base font-medium text-gray-900">
-              Total Projects
+              Products
             </CardTitle>
             <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center">
               <BarChart2 className="h-4 w-4 text-blue-500" />
@@ -186,9 +193,7 @@ const DashboardGrid = ({
             <div className="text-3xl font-semibold text-gray-900">
               {projects.length}
             </div>
-            <p className="text-sm text-gray-500 mt-1">
-              Active projects this month
-            </p>
+            <p className="text-sm text-gray-500 mt-1">Active inventory items</p>
           </CardContent>
         </Card>
         <Card className="bg-white/90 backdrop-blur-sm border border-gray-100 rounded-2xl shadow-sm overflow-hidden w-full">
@@ -205,20 +210,62 @@ const DashboardGrid = ({
             <p className="text-sm text-gray-500 mt-1">Active contributors</p>
           </CardContent>
         </Card>
-        <Card className="bg-white/90 backdrop-blur-sm border border-gray-100 rounded-2xl shadow-sm overflow-hidden w-full">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base font-medium text-gray-900">
-              Upcoming Deadlines
-            </CardTitle>
-            <div className="h-8 w-8 rounded-full bg-orange-50 flex items-center justify-center">
-              <CalendarDays className="h-4 w-4 text-orange-500" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-semibold text-gray-900">5</div>
-            <p className="text-sm text-gray-500 mt-1">Due this week</p>
-          </CardContent>
-        </Card>
+        <a href="/dashboard/returns" className="block">
+          <Card className="bg-white/90 backdrop-blur-sm border border-gray-100 rounded-2xl shadow-sm overflow-hidden w-full hover:shadow-md transition-all duration-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-base font-medium text-gray-900">
+                Product Returns
+              </CardTitle>
+              <div className="h-8 w-8 rounded-full bg-red-50 flex items-center justify-center">
+                <Box className="h-4 w-4 text-red-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-semibold text-gray-900">View</div>
+              <p className="text-sm text-gray-500 mt-1">
+                Manage product returns
+              </p>
+            </CardContent>
+          </Card>
+        </a>
+
+        <a href="/dashboard/customers?filter=credits" className="block">
+          <Card className="bg-white/90 backdrop-blur-sm border border-gray-100 rounded-2xl shadow-sm overflow-hidden w-full hover:shadow-md transition-all duration-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-base font-medium text-gray-900">
+                Customer Credits
+              </CardTitle>
+              <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center">
+                <Users className="h-4 w-4 text-blue-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-semibold text-gray-900">View</div>
+              <p className="text-sm text-gray-500 mt-1">
+                Outstanding customer credits
+              </p>
+            </CardContent>
+          </Card>
+        </a>
+
+        <a href="/dashboard/suppliers?filter=dues" className="block">
+          <Card className="bg-white/90 backdrop-blur-sm border border-gray-100 rounded-2xl shadow-sm overflow-hidden w-full hover:shadow-md transition-all duration-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-base font-medium text-gray-900">
+                Supplier Dues
+              </CardTitle>
+              <div className="h-8 w-8 rounded-full bg-purple-50 flex items-center justify-center">
+                <Store className="h-4 w-4 text-purple-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-semibold text-gray-900">View</div>
+              <p className="text-sm text-gray-500 mt-1">
+                Pending supplier payments
+              </p>
+            </CardContent>
+          </Card>
+        </a>
 
         {/* Project Cards */}
         {projects.map((project, index) => (

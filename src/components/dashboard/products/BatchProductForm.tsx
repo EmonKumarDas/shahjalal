@@ -424,9 +424,26 @@ export function BatchProductForm({
             .eq("id", matchingProduct.id);
 
           if (updateError) throw updateError;
+
+          // Add entry to product_history for the quantity update
+          const { error: historyError } = await supabase
+            .from("product_history")
+            .insert({
+              product_id: matchingProduct.id,
+              quantity: Number(row.quantity), // Record the added quantity, not the total
+              action_type: "restock",
+              notes: `Added ${row.quantity} units via batch import`,
+              created_at: date
+                ? new Date(date).toISOString()
+                : new Date().toISOString(),
+            });
+
+          if (historyError) {
+            console.error("Error creating history entry:", historyError);
+          }
         } else {
           // Create new product
-          const { error: insertError } = await supabase
+          const { data: newProduct, error: insertError } = await supabase
             .from("products")
             .insert({
               name: row.name.trim(),
@@ -445,9 +462,29 @@ export function BatchProductForm({
                 ? new Date(date).toISOString()
                 : new Date().toISOString(),
               updated_at: new Date().toISOString(),
-            });
+            })
+            .select();
 
           if (insertError) throw insertError;
+
+          // Add entry to product_history for the new product
+          if (newProduct && newProduct.length > 0) {
+            const { error: historyError } = await supabase
+              .from("product_history")
+              .insert({
+                product_id: newProduct[0].id,
+                quantity: Number(row.quantity),
+                action_type: "create",
+                notes: "Initial product creation via batch import",
+                created_at: date
+                  ? new Date(date).toISOString()
+                  : new Date().toISOString(),
+              });
+
+            if (historyError) {
+              console.error("Error creating history entry:", historyError);
+            }
+          }
         }
       }
 

@@ -17,6 +17,8 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  Save,
+  User,
 } from "lucide-react";
 import {
   Table,
@@ -27,6 +29,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useNavigate } from "react-router-dom";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type Customer = {
   id: string;
@@ -37,6 +41,8 @@ type Customer = {
   created_at: string;
   total_spent?: number;
   last_purchase?: string;
+  balance?: number;
+  total_due?: number;
 };
 
 type Invoice = {
@@ -80,9 +86,19 @@ export function CustomerDetails({
   const [outstandingAmount, setOutstandingAmount] = useState(0);
   const [completedOrders, setCompletedOrders] = useState(0);
   const [pendingOrders, setPendingOrders] = useState(0);
+  const [isEditing, setIsEditing] = useState(customer.id === "");
+  const [isSaving, setIsSaving] = useState(false);
+  const [formData, setFormData] = useState({
+    name: customer.name || "",
+    phone: customer.phone || "",
+    email: customer.email || "",
+    address: customer.address || "",
+  });
 
   useEffect(() => {
-    fetchCustomerData();
+    if (customer.id) {
+      fetchCustomerData();
+    }
   }, [customer]);
 
   async function fetchCustomerData() {
@@ -157,6 +173,83 @@ export function CustomerDetails({
     }
   }
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.name || !formData.phone) {
+      toast({
+        variant: "destructive",
+        title: "Validation Error",
+        description: "Name and phone number are required.",
+      });
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+
+      if (customer.id) {
+        // Update existing customer
+        const { error } = await supabase
+          .from("customers")
+          .update({
+            name: formData.name,
+            phone: formData.phone,
+            email: formData.email || null,
+            address: formData.address || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", customer.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Customer updated",
+          description: "Customer information has been updated successfully.",
+        });
+      } else {
+        // Create new customer
+        const { data, error } = await supabase
+          .from("customers")
+          .insert({
+            name: formData.name,
+            phone: formData.phone,
+            email: formData.email || null,
+            address: formData.address || null,
+            created_at: new Date().toISOString(),
+          })
+          .select();
+
+        if (error) throw error;
+
+        toast({
+          title: "Customer created",
+          description: "New customer has been created successfully.",
+        });
+      }
+
+      setIsEditing(false);
+      onCustomerUpdated();
+    } catch (error) {
+      console.error("Error saving customer:", error);
+      toast({
+        variant: "destructive",
+        title: "Error saving customer",
+        description: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "paid":
@@ -190,13 +283,107 @@ export function CustomerDetails({
     navigate(`/dashboard/invoices/${invoiceId}`);
   };
 
+  if (isEditing) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="icon" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <h2 className="text-2xl font-bold">
+            {customer.id ? `Edit ${customer.name}` : "Add New Customer"}
+          </h2>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Customer Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Full Name *</Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder="John Doe"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone Number *</Label>
+                  <Input
+                    id="phone"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    placeholder="+1234567890"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    placeholder="john.doe@example.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="address">Address</Label>
+                  <Input
+                    id="address"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    placeholder="123 Main St, City, Country"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onBack}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Customer
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" onClick={onBack}>
-          <ArrowLeft className="h-4 w-4" />
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="icon" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <h2 className="text-2xl font-bold">{customer.name}</h2>
+        </div>
+        <Button onClick={() => setIsEditing(true)}>
+          <User className="mr-2 h-4 w-4" /> Edit Customer
         </Button>
-        <h2 className="text-2xl font-bold">{customer.name}</h2>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

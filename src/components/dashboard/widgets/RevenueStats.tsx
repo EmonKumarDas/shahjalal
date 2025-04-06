@@ -14,6 +14,7 @@ import {
   DollarSign,
   TrendingDown,
   Wallet,
+  Users,
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { format, subDays, subMonths, subYears } from "date-fns";
+import { Store } from "lucide-react";
 
 type StatProps = {
   title: string;
@@ -583,6 +585,40 @@ export function RevenueStats() {
       </div>
 
       {/* Bar Chart for Income, Expenses, Net Profit */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+        <a href="/dashboard/customers?filter=credits" className="block">
+          <Card className="bg-white hover:shadow-md transition-all duration-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-medium flex items-center gap-2">
+                <Users className="h-4 w-4 text-blue-600" />
+                View Customer Credits
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-500">
+                View all customers with outstanding credits
+              </p>
+            </CardContent>
+          </Card>
+        </a>
+
+        <a href="/dashboard/suppliers?filter=dues" className="block">
+          <Card className="bg-white hover:shadow-md transition-all duration-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-medium flex items-center gap-2">
+                <Store className="h-4 w-4 text-purple-600" />
+                View Supplier Dues
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-500">
+                View all suppliers with pending payments
+              </p>
+            </CardContent>
+          </Card>
+        </a>
+      </div>
+
       <div className="mt-6 p-3 sm:p-4 bg-white rounded-lg shadow">
         <h3 className="text-lg font-medium mb-3 sm:mb-4">Financial Metrics</h3>
         <div className="h-48 sm:h-64 flex items-end justify-around">

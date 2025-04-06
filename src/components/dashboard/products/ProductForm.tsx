@@ -366,6 +366,7 @@ export function ProductForm({
           };
 
       let result;
+      let productId;
 
       if (product) {
         // Update existing product
@@ -374,6 +375,17 @@ export function ProductForm({
           .update(productData)
           .eq("id", product.id)
           .select();
+
+        productId = product.id;
+
+        // Add entry to product_history for the update
+        await supabase.from("product_history").insert({
+          product_id: product.id,
+          quantity: Number(quantity),
+          action_type: isRestocking ? "restock" : "update",
+          notes: isRestocking ? "Product restocked" : "Product updated",
+          created_at: new Date().toISOString(),
+        });
       } else if (existingProduct) {
         // Update existing product if found with same name, supplier, and watt
         const updatedQuantity = existingProduct.quantity + Number(quantity);
@@ -386,6 +398,17 @@ export function ProductForm({
           .eq("id", existingProduct.id)
           .select();
 
+        productId = existingProduct.id;
+
+        // Add entry to product_history for the quantity update
+        await supabase.from("product_history").insert({
+          product_id: existingProduct.id,
+          quantity: Number(quantity), // Record the added quantity, not the total
+          action_type: "restock",
+          notes: `Added ${quantity} units to existing product`,
+          created_at: new Date().toISOString(),
+        });
+
         toast({
           title: "Product updated",
           description: `Found existing product "${existingProduct.name}". Updated quantity to ${updatedQuantity}.`,
@@ -393,6 +416,21 @@ export function ProductForm({
       } else {
         // Create new product
         result = await supabase.from("products").insert([productData]).select();
+
+        if (result.data && result.data.length > 0) {
+          productId = result.data[0].id;
+
+          // Add entry to product_history for the new product
+          await supabase.from("product_history").insert({
+            product_id: productId,
+            quantity: Number(quantity),
+            action_type: "create",
+            notes: "Initial product creation",
+            created_at: date
+              ? new Date(date).toISOString()
+              : new Date().toISOString(),
+          });
+        }
       }
 
       if (result.error) throw result.error;
