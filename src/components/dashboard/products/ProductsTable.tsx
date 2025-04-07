@@ -146,7 +146,7 @@ export function ProductsTable() {
       const { data: productsData, error: productsError } = await supabase
         .from("products")
         .select("*, shops(id, name)")
-        .order("name");
+        .order("created_at", { ascending: false });
 
       if (productsError) throw productsError;
 

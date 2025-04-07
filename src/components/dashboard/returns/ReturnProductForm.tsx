@@ -107,7 +107,12 @@ export function ReturnProductForm({
         .eq("id", invoiceId)
         .single();
 
-      if (invoiceError) throw invoiceError;
+      if (invoiceError) {
+        console.error("Error fetching invoice details:", invoiceError);
+        throw new Error(
+          `Error fetching invoice details: ${invoiceError.message || JSON.stringify(invoiceError)}`,
+        );
+      }
       setInvoice(invoiceData);
 
       // Fetch invoice items
@@ -116,15 +121,60 @@ export function ReturnProductForm({
         .select("*")
         .eq("invoice_id", invoiceId);
 
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        console.error("Error fetching invoice items:", itemsError);
+        throw new Error(
+          `Error fetching invoice items: ${itemsError.message || JSON.stringify(itemsError)}`,
+        );
+      }
 
-      // Check for already returned items
-      const { data: returnsData, error: returnsError } = await supabase
-        .from("product_returns")
-        .select("product_id, quantity")
-        .eq("invoice_id", invoiceId);
+      // Check for already returned items - use a safer approach with column existence check
+      let returnsData = [];
+      try {
+        // Try to fetch returned items directly, but catch and handle any column-not-exists errors
+        const { data, error: returnsError } = await supabase
+          .from("product_returns")
+          .select("product_id, quantity")
+          .eq("invoice_id", invoiceId);
 
-      if (returnsError) throw returnsError;
+        if (returnsError) {
+          // Check if the error is related to missing column
+          if (
+            returnsError.message &&
+            returnsError.message.includes("column") &&
+            returnsError.message.includes("does not exist")
+          ) {
+            console.warn(
+              "product_id column does not exist in product_returns table. Migration may be pending.",
+              returnsError.message,
+            );
+            // Continue with empty returns data
+            toast({
+              title: "Database Migration Notice",
+              description:
+                "A database update is in progress. Some return history may not be available until the update completes.",
+            });
+          } else {
+            // Log other errors but don't throw - allow the process to continue with empty returns data
+            console.error("Error fetching returned items:", returnsError);
+            toast({
+              variant: "destructive",
+              title: "Warning",
+              description:
+                "Could not fetch previous returns. Some data may be incomplete.",
+            });
+          }
+        } else {
+          returnsData = data || [];
+        }
+      } catch (returnsError) {
+        console.error(
+          "Error checking or fetching returned items:",
+          returnsError,
+        );
+        // Continue with empty returns data rather than failing the whole process
+        console.warn("Continuing with empty returns data due to error");
+      }
 
       // Calculate remaining quantities that can be returned
       const returnedQuantities: Record<string, number> = {};
@@ -153,7 +203,8 @@ export function ReturnProductForm({
       toast({
         variant: "destructive",
         title: "Error fetching invoice details",
-        description: error instanceof Error ? error.message : String(error),
+        description:
+          error instanceof Error ? error.message : JSON.stringify(error),
       });
     } finally {
       setLoading(false);
@@ -170,7 +221,12 @@ export function ReturnProductForm({
 
       const { data, error } = await query.limit(20);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching exchange products:", error);
+        throw new Error(
+          `Error fetching exchange products: ${error.message || JSON.stringify(error)}`,
+        );
+      }
       setExchangeProducts(data || []);
 
       // Check if there are any products available for exchange
@@ -184,7 +240,8 @@ export function ReturnProductForm({
       toast({
         variant: "destructive",
         title: "Error fetching exchange products",
-        description: error instanceof Error ? error.message : String(error),
+        description:
+          error instanceof Error ? error.message : JSON.stringify(error),
       });
       setStockAvailable(false);
     }
@@ -262,6 +319,23 @@ export function ReturnProductForm({
       return;
     }
 
+    // Check if we're exchanging for the same product
+    const selectedItem = invoiceItems.find(
+      (item) => item.id === selectedItemId,
+    );
+    const exchangeProduct =
+      returnType === "exchange"
+        ? exchangeProducts.find(
+            (product) => product.id === selectedExchangeProductId,
+          )
+        : null;
+
+    const isSameProductExchange =
+      returnType === "exchange" &&
+      selectedItem &&
+      exchangeProduct &&
+      selectedItem.product_id === selectedExchangeProductId;
+
     try {
       setLoading(true);
 
@@ -295,35 +369,55 @@ export function ReturnProductForm({
       const finalRefundAmount =
         returnType === "refund" ? refundAmount - returnFees : 0;
 
-      // Create return record
+      // For same product exchanges, set price difference to 0
+      if (isSameProductExchange) {
+        setPriceDifference(0);
+      }
+
+      // Create return record with explicit string values for text fields to avoid null constraint issues
       const returnData = {
         invoice_id: invoiceId,
         product_id: selectedItem.product_id,
         customer_id: invoice.customer_id,
         quantity: returnQuantity,
-        reason: returnReason,
+        // CRITICAL: Always use a non-null string value for reason
+        reason: returnReason || "No reason provided",
         return_type: returnType,
         status: "pending",
         refund_amount: finalRefundAmount,
         exchange_product_id:
           returnType === "exchange" ? selectedExchangeProductId : null,
         price_difference: returnType === "exchange" ? priceDifference : 0,
-        payment_method: paymentMethod,
-        condition: returnCondition,
+        payment_method: priceDifference > 0 ? paymentMethod : "none",
+        condition: returnCondition || "good",
         return_fees: returnFees,
-        admin_notes: adminNotes,
+        admin_notes: adminNotes || "No additional notes",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         total_amount:
           returnType === "refund" ? finalRefundAmount : priceDifference,
       };
 
-      const { data, error } = await supabase
-        .from("product_returns")
-        .insert([returnData])
-        .select();
+      // Try to insert with explicit error handling
+      let insertResult;
+      try {
+        insertResult = await supabase
+          .from("product_returns")
+          .insert([returnData])
+          .select();
 
-      if (error) throw error;
+        if (insertResult.error) {
+          console.error("Error details:", insertResult.error);
+          throw new Error(
+            `Error creating return record: ${insertResult.error.message}`,
+          );
+        }
+      } catch (insertError) {
+        console.error("Exception during insert:", insertError);
+        throw new Error(`Failed to create return: ${insertError.message}`);
+      }
+
+      const { data, error } = insertResult;
 
       // Update original product quantity (add back to inventory for refund)
       const { data: productData, error: productError } = await supabase
@@ -332,7 +426,12 @@ export function ReturnProductForm({
         .eq("id", selectedItem.product_id)
         .single();
 
-      if (productError) throw productError;
+      if (productError) {
+        console.error("Error fetching product data:", productError);
+        throw new Error(
+          `Error fetching product data: ${productError.message || JSON.stringify(productError)}`,
+        );
+      }
 
       await supabase
         .from("products")
@@ -381,7 +480,8 @@ export function ReturnProductForm({
           ]);
 
           // Create a new invoice for the exchange if there's a price difference to pay
-          if (priceDifference > 0) {
+          // Skip this for same product exchanges
+          if (priceDifference > 0 && !isSameProductExchange) {
             const { data: invoiceData, error: invoiceError } = await supabase
               .from("invoices")
               .insert({
@@ -396,7 +496,12 @@ export function ReturnProductForm({
               })
               .select();
 
-            if (invoiceError) throw invoiceError;
+            if (invoiceError) {
+              console.error("Error creating exchange invoice:", invoiceError);
+              throw new Error(
+                `Error creating exchange invoice: ${invoiceError.message || JSON.stringify(invoiceError)}`,
+              );
+            }
 
             if (invoiceData && invoiceData.length > 0) {
               // Add invoice item for the exchanged product
@@ -439,7 +544,8 @@ export function ReturnProductForm({
       toast({
         variant: "destructive",
         title: "Error processing return",
-        description: error instanceof Error ? error.message : String(error),
+        description:
+          error instanceof Error ? error.message : JSON.stringify(error),
       });
     } finally {
       setLoading(false);
